@@ -140,7 +140,7 @@ body::before {
 
 .summary-grid,
 .main-grid,
-.tuning-grid,
+.tuning-stack,
 .field-grid {
   display: grid;
   gap: 18px;
@@ -156,14 +156,8 @@ body::before {
   margin-bottom: 18px;
 }
 
-.tuning-grid {
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+.tuning-stack {
   margin-bottom: 18px;
-  align-items: start;
-}
-
-.tuning-grid.custom-hidden {
-  grid-template-columns: 1fr;
 }
 
 .field-grid {
@@ -334,23 +328,20 @@ code {
 
 .preset-browser {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .preset-browser-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.tuning-grid.custom-hidden .preset-browser-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .preset-card {
   display: grid;
-  gap: 8px;
-  padding: 13px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background:
@@ -373,6 +364,7 @@ code {
   justify-content: space-between;
   gap: 12px;
   align-items: baseline;
+  grid-column: 1;
 }
 
 .preset-card-title {
@@ -397,7 +389,7 @@ code {
 
 .preset-section {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .preset-section + .preset-section {
@@ -415,6 +407,7 @@ code {
   color: var(--muted);
   font-size: 10px;
   text-transform: lowercase;
+  grid-column: 1;
 }
 
 .preset-tags,
@@ -436,10 +429,22 @@ code {
   background: rgba(44, 41, 64, 0.78);
 }
 
+.preset-card-copy,
+.preset-tags {
+  grid-column: 1;
+}
+
 .preset-card-actions .ghost-btn,
 .preset-card-actions .secondary-btn {
   padding: 8px 11px;
   font-size: 12px;
+}
+
+.preset-card-actions {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  justify-content: flex-end;
 }
 
 .preset-actions {
@@ -609,12 +614,22 @@ video {
 @media (max-width: 940px) {
   .summary-grid,
   .main-grid,
-  .tuning-grid,
+  .tuning-stack,
   .field-grid,
   .preset-browser,
   .preset-browser-grid,
   .preset-grid {
     grid-template-columns: 1fr;
+  }
+
+  .preset-card {
+    grid-template-columns: 1fr;
+  }
+
+  .preset-card-actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
   }
 }
 

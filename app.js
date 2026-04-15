@@ -214,7 +214,6 @@ const CUSTOM_PRESET_FIELDS = [
 const PAN_POSITIONS = [-0.65, 0.65, 0.38, -0.38, 0.22, -0.22, 0.12, -0.12];
 
 const elements = {
-  tuningGrid: document.getElementById("tuning"),
   csvFile: document.getElementById("csvFile"),
   videoFile: document.getElementById("videoFile"),
   embeddedLogField: document.getElementById("embeddedLogField"),
@@ -307,7 +306,7 @@ elements.importPresetButton.addEventListener("click", () => {
 });
 
 elements.resetPresetButton.addEventListener("click", () => {
-  setCustomPreset(clonePreset(getModePreset("realistic")));
+  setCustomPreset(clonePreset(getPresetForMode("realistic")));
   elements.soundMode.value = "custom";
   updateModeUi();
   setStatus("custom preset reset to realistic base.");
@@ -343,7 +342,7 @@ elements.presetBrowser.addEventListener("click", (event) => {
 
   const mode = button.dataset.mode;
   const action = button.dataset.action;
-  const selectedPreset = getModePreset(mode);
+  const selectedPreset = getPresetForMode(mode);
   if (!selectedPreset) {
     return;
   }
@@ -697,7 +696,6 @@ function updateModeUi() {
   }
   elements.modeDescription.textContent = getModeDescription(elements.soundMode.value);
   elements.customPresetPanel.classList.toggle("hidden", !customVisible);
-  elements.tuningGrid.classList.toggle("custom-hidden", !customVisible);
   syncPresetBrowser();
   syncCustomPresetUi();
 }
