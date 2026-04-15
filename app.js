@@ -62,6 +62,8 @@ const PAN_POSITIONS = [-0.65, 0.65, 0.38, -0.38, 0.22, -0.22, 0.12, -0.12];
 const elements = {
   csvFile: document.getElementById("csvFile"),
   videoFile: document.getElementById("videoFile"),
+  embeddedLogField: document.getElementById("embeddedLogField"),
+  embeddedLogSelect: document.getElementById("embeddedLogSelect"),
   stickOverlayToggle: document.getElementById("stickOverlayToggle"),
   loadDemo: document.getElementById("loadDemo"),
   clearLog: document.getElementById("clearLog"),
@@ -84,10 +86,12 @@ const elements = {
   fieldSummary: document.getElementById("fieldSummary"),
   renderSummary: document.getElementById("renderSummary"),
   modeDescription: document.getElementById("modeDescription"),
+  syncNudges: Array.from(document.querySelectorAll(".sync-nudge")),
 };
 
 const state = {
   log: null,
+  rawBundle: null,
   render: null,
   audioUrl: null,
   videoUrl: null,
@@ -108,9 +112,19 @@ elements.videoStart.addEventListener("input", () => {
   refreshStickOverlay();
 });
 
+elements.embeddedLogSelect.addEventListener("change", () => {
+  applyEmbeddedLogSelection(Number(elements.embeddedLogSelect.value));
+});
+
 elements.stickOverlayToggle.addEventListener("change", () => {
   refreshStickOverlay();
 });
+
+for (const button of elements.syncNudges) {
+  button.addEventListener("click", () => {
+    nudgeVideoStart(Number(button.dataset.nudge));
+  });
+}
 
 elements.csvFile.addEventListener("change", async (event) => {
   const [file] = event.target.files;
@@ -120,12 +134,22 @@ elements.csvFile.addEventListener("change", async (event) => {
 
   try {
     setStatus(`parsing ${file.name}...`);
-    const log = isRawBlackboxFile(file)
-      ? normalizeParsedLog(parseBlackboxBinaryLog(await file.arrayBuffer(), file.name))
-      : parseBlackboxCsv(await file.text(), file.name);
-    loadLog(log);
-    setStatus(`loaded ${file.name}. ready to render audio.`);
+    if (isRawBlackboxFile(file)) {
+      const bundle = parseBlackboxBinaryLog(await file.arrayBuffer(), file.name);
+      setRawBundle(bundle);
+      applyEmbeddedLogSelection(bundle.defaultIndex);
+      setStatus(
+        bundle.flights.length > 1
+          ? `loaded ${file.name}. found ${bundle.flights.length} embedded logs.`
+          : `loaded ${file.name}. ready to render audio.`,
+      );
+    } else {
+      clearRawBundle();
+      loadLog(parseBlackboxCsv(await file.text(), file.name));
+      setStatus(`loaded ${file.name}. ready to render audio.`);
+    }
   } catch (error) {
+    clearRawBundle();
     setStatus(error.message);
   }
 });
@@ -146,6 +170,7 @@ elements.videoFile.addEventListener("change", async (event) => {
 elements.loadDemo.addEventListener("click", () => {
   try {
     setStatus("loading demo flight...");
+    clearRawBundle();
     loadLog(parseBlackboxCsv(buildDemoCsv(), "demo-flight.csv"));
     setStatus("demo flight loaded. render a clip to audition the synth.");
   } catch (error) {
@@ -156,6 +181,7 @@ elements.loadDemo.addEventListener("click", () => {
 elements.clearLog.addEventListener("click", () => {
   clearRender();
   state.log = null;
+  clearRawBundle();
   elements.csvFile.value = "";
   elements.inputSummary.textContent = "no log loaded";
   elements.fieldSummary.textContent = "awaiting log";
@@ -285,6 +311,42 @@ function loadLog(log) {
   refreshStickOverlay();
 }
 
+function setRawBundle(bundle) {
+  state.rawBundle = bundle;
+  elements.embeddedLogSelect.innerHTML = bundle.flights
+    .map(
+      (flight, index) =>
+        `<option value="${index}">${escapeHtml(flight.label)}</option>`,
+    )
+    .join("");
+
+  if (bundle.flights.length > 1) {
+    elements.embeddedLogField.classList.remove("hidden");
+  } else {
+    elements.embeddedLogField.classList.add("hidden");
+  }
+}
+
+function clearRawBundle() {
+  state.rawBundle = null;
+  elements.embeddedLogSelect.innerHTML = "";
+  elements.embeddedLogField.classList.add("hidden");
+}
+
+function applyEmbeddedLogSelection(index) {
+  if (!state.rawBundle) {
+    return;
+  }
+
+  const safeIndex = clampNumber(index, 0, state.rawBundle.flights.length - 1);
+  elements.embeddedLogSelect.value = String(safeIndex);
+  loadLog(normalizeParsedLog(state.rawBundle.flights[safeIndex]));
+
+  if (state.rawBundle.flights.length > 1) {
+    setStatus(`selected ${state.rawBundle.flights[safeIndex].label}.`);
+  }
+}
+
 function clearVideo() {
   if (state.videoUrl) {
     URL.revokeObjectURL(state.videoUrl);
@@ -374,6 +436,16 @@ function stopSyncLoop() {
   if (state.syncRaf) {
     window.cancelAnimationFrame(state.syncRaf);
     state.syncRaf = null;
+  }
+}
+
+function nudgeVideoStart(delta) {
+  const nextValue = clampNumber(Number(elements.videoStart.value) + delta, 0, 1e9);
+  elements.videoStart.value = nextValue.toFixed(Math.abs(delta) < 1 ? 1 : 0);
+  refreshStickOverlay();
+
+  if (elements.videoPreview.src) {
+    elements.videoPreview.currentTime = nextValue;
   }
 }
 
@@ -538,6 +610,15 @@ function drawStickDot(ctx, centerX, centerY, radius, xNorm, yNorm) {
 
 function setStatus(message) {
   elements.statusStrip.textContent = message;
+}
+
+function escapeHtml(value) {
+  return `${value}`
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function parseBlackboxCsv(text, sourceName) {

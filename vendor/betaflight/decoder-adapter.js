@@ -124,15 +124,39 @@ export function parseBlackboxBinaryLog(arrayBuffer, sourceName) {
     throw new Error("the raw log was found, but no usable flight frames could be decoded.");
   }
 
-  candidates.sort((left, right) => right.rawFrames.length - left.rawFrames.length);
-  const best = candidates[0];
+  let defaultIndex = 0;
+  let bestLength = -1;
+
+  const flights = candidates
+    .sort((left, right) => left.index - right.index)
+    .map((candidate, candidateIndex) => {
+      if (candidate.rawFrames.length > bestLength) {
+        bestLength = candidate.rawFrames.length;
+        defaultIndex = candidateIndex;
+      }
+
+      const duration =
+        candidate.rawFrames.length > 1
+          ? candidate.rawFrames[candidate.rawFrames.length - 1].time - candidate.rawFrames[0].time
+          : 0;
+
+      return {
+        sourceName:
+          offsets.length > 1
+            ? `${sourceName} · log ${candidate.index + 1}/${offsets.length}`
+            : sourceName,
+        label:
+          offsets.length > 1
+            ? `log ${candidate.index + 1} · ${duration.toFixed(1)}s · ${candidate.rawFrames.length.toLocaleString()} samples`
+            : `main log · ${duration.toFixed(1)}s · ${candidate.rawFrames.length.toLocaleString()} samples`,
+        rawFrames: candidate.rawFrames,
+        detection: candidate.detection,
+      };
+    });
 
   return {
-    sourceName:
-      candidates.length > 1
-        ? `${sourceName} · log ${best.index + 1}/${offsets.length}`
-        : sourceName,
-    rawFrames: best.rawFrames,
-    detection: best.detection,
+    sourceName,
+    flights,
+    defaultIndex,
   };
 }

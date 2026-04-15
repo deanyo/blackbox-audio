@@ -39,6 +39,8 @@ this prototype now supports raw `.bbl` / `.bfl` input as well as csv.
 - toggle wind noise and frame resonance
 - upload an optional dvr video and audition the rendered clip in sync
 - preview a virtual stick cam overlay when roll, pitch, yaw, and throttle fields are present
+- choose between multiple embedded logs when a raw blackbox file contains more than one flight
+- nudge video sync start quickly in the ui without typing offsets by hand
 - download the synthesized audio as wav
 
 for direct raw-log support, this repo now vendors and adapts a minimal parser slice from betaflight blackbox explorer. because that upstream code is gpl-3.0, this project is now licensed under gpl-3.0 as well.
@@ -70,5 +72,5 @@ cloudflare workers only become worth adding when one of these becomes real:
 
 1. prefer real rpm telemetry when present instead of estimating pitch from motor command.
 2. add a manual sync marker workflow using arming beep alignment against dvr audio.
-3. let users choose between multiple flights embedded in a single raw blackbox file.
-4. export muxed video+audio plus stick overlay, likely via ffmpeg.wasm if the static-site requirement holds.
+3. export muxed video+audio plus stick overlay, likely via ffmpeg.wasm if the static-site requirement holds.
+4. add first-party sample dvr + matching blackbox log for one-click testing.

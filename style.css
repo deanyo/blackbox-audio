@@ -298,7 +298,8 @@ code {
 }
 
 .action-row,
-.toggle-row {
+.toggle-row,
+.nudge-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -306,6 +307,10 @@ code {
 
 .action-row {
   margin: 14px 0;
+}
+
+.nudge-row {
+  margin: -2px 0 14px;
 }
 
 .primary-btn,
