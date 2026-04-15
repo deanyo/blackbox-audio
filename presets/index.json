@@ -1,3 +1,5 @@
 {
-  "community": []
+  "community": [
+    "./presets/community/deanyo-indoor-duct.json"
+  ]
 }

@@ -25,6 +25,10 @@ Blackbox Audio can load community presets directly from JSON files in this repos
 4. Add the new file path to [`presets/index.json`](../presets/index.json)
 5. Open a pull request
 
+Reference example:
+
+- [`presets/community/deanyo-indoor-duct.json`](../presets/community/deanyo-indoor-duct.json)
+
 ## Preset Schema
 
 Required practical fields:

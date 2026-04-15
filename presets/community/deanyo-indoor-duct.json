@@ -1,0 +1,22 @@
+{
+  "slug": "deanyo-indoor-duct",
+  "name": "Indoor Duct Sweep",
+  "author": "deanyo",
+  "flavor": "curated example",
+  "description": "A heavier indoor whoop-style voice with extra resonance and restrained wind, intended as a reference community preset.",
+  "tags": ["indoor", "whoop", "duct", "curated"],
+  "preset": {
+    "basePitch": 108,
+    "pitchRange": 272,
+    "gyroPitch": 84,
+    "spreadPitch": 132,
+    "harmonic2": 0.54,
+    "harmonic3": 0.21,
+    "motorGain": 0.44,
+    "windGain": 0.03,
+    "resonanceGain": 0.18,
+    "transientGain": 0.019,
+    "subGain": 0.06,
+    "spaceGain": 0
+  }
+}
