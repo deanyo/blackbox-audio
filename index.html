@@ -145,41 +145,6 @@
           realistic tinywhoop favors buzzy harmonics, lift-dependent wind, and subtle frame chatter.
         </div>
 
-        <section class="preset-browser-panel">
-          <div class="section-head compact-head">
-            <div>
-              <h2>voice browser</h2>
-              <p>pick a built-in voice or copy one into custom and tweak from there.</p>
-            </div>
-          </div>
-          <div class="preset-browser" id="presetBrowser"></div>
-        </section>
-
-        <section class="custom-panel hidden" id="customPresetPanel">
-          <div class="section-head compact-head">
-            <div>
-              <h2>custom preset</h2>
-              <p>tune your own version, then export or import presets as json.</p>
-            </div>
-          </div>
-
-          <div class="preset-actions">
-            <button id="previewPresetButton" type="button" class="secondary-btn">preview custom</button>
-            <button id="exportPresetButton" type="button" class="ghost-btn">export preset</button>
-            <button id="importPresetButton" type="button" class="ghost-btn">import preset</button>
-            <button id="resetPresetButton" type="button" class="ghost-btn">reset custom</button>
-            <input id="importPresetFile" class="hidden" type="file" accept=".json,application/json">
-          </div>
-
-          <label class="toggle-pill standalone-toggle">
-            <input id="livePreviewToggle" type="checkbox" checked>
-            <span>live audio preview while tweaking</span>
-          </label>
-          <div class="preset-note">plays a short audio slice from the current clip start when sliders move.</div>
-
-          <div class="preset-grid" id="customPresetFields"></div>
-        </section>
-
         <div class="action-row">
           <button id="renderButton" class="primary-btn">render wav</button>
           <button id="playButton" class="secondary-btn">play synced clip</button>
@@ -188,6 +153,43 @@
         </div>
 
         <a id="downloadLink" class="download-link hidden" download="blackbox-synth.wav">download synthesized wav</a>
+      </section>
+    </section>
+
+    <section class="tuning-grid custom-hidden" id="tuning">
+      <section class="card preset-browser-panel">
+        <div class="section-head compact-head">
+          <div>
+            <h2>voice browser</h2>
+            <p>pick a built-in voice or copy one into custom and tweak from there.</p>
+          </div>
+        </div>
+        <div class="preset-browser" id="presetBrowser"></div>
+      </section>
+
+      <section class="card custom-panel hidden" id="customPresetPanel">
+        <div class="section-head compact-head">
+          <div>
+            <h2>custom preset</h2>
+            <p>tune your own version, then preview, export, or import presets as json.</p>
+          </div>
+        </div>
+
+        <div class="preset-actions">
+          <button id="previewPresetButton" type="button" class="secondary-btn">preview custom</button>
+          <button id="exportPresetButton" type="button" class="ghost-btn">export preset</button>
+          <button id="importPresetButton" type="button" class="ghost-btn">import preset</button>
+          <button id="resetPresetButton" type="button" class="ghost-btn">reset custom</button>
+          <input id="importPresetFile" class="hidden" type="file" accept=".json,application/json">
+        </div>
+
+        <label class="toggle-pill standalone-toggle">
+          <input id="livePreviewToggle" type="checkbox" checked>
+          <span>live audio preview while tweaking</span>
+        </label>
+        <div class="preset-note">plays a short audio slice from the current clip start when sliders move.</div>
+
+        <div class="preset-grid" id="customPresetFields"></div>
       </section>
     </section>
 

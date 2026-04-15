@@ -140,6 +140,7 @@ body::before {
 
 .summary-grid,
 .main-grid,
+.tuning-grid,
 .field-grid {
   display: grid;
   gap: 18px;
@@ -153,6 +154,16 @@ body::before {
 .main-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 18px;
+}
+
+.tuning-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+  margin-bottom: 18px;
+  align-items: start;
+}
+
+.tuning-grid.custom-hidden {
+  grid-template-columns: 1fr;
 }
 
 .field-grid {
@@ -318,19 +329,7 @@ code {
 }
 
 .custom-panel {
-  margin-bottom: 14px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(44, 41, 64, 0.52);
-}
-
-.preset-browser-panel {
-  margin: 14px 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(44, 41, 64, 0.42);
+  margin-bottom: 0;
 }
 
 .preset-browser {
@@ -339,10 +338,14 @@ code {
   gap: 12px;
 }
 
+.tuning-grid.custom-hidden .preset-browser {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .preset-card {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: 8px;
+  padding: 13px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background:
@@ -383,8 +386,8 @@ code {
 .preset-card-copy,
 .preset-note {
   color: #b8b0cc;
-  font-size: 12px;
-  line-height: 1.65;
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .preset-tags,
@@ -408,7 +411,7 @@ code {
 
 .preset-card-actions .ghost-btn,
 .preset-card-actions .secondary-btn {
-  padding: 9px 12px;
+  padding: 8px 11px;
   font-size: 12px;
 }
 
@@ -579,6 +582,7 @@ video {
 @media (max-width: 940px) {
   .summary-grid,
   .main-grid,
+  .tuning-grid,
   .field-grid,
   .preset-browser,
   .preset-grid {

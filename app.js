@@ -223,6 +223,7 @@ const CUSTOM_PRESET_FIELDS = [
 const PAN_POSITIONS = [-0.65, 0.65, 0.38, -0.38, 0.22, -0.22, 0.12, -0.12];
 
 const elements = {
+  tuningGrid: document.getElementById("tuning"),
   csvFile: document.getElementById("csvFile"),
   videoFile: document.getElementById("videoFile"),
   embeddedLogField: document.getElementById("embeddedLogField"),
@@ -616,11 +617,13 @@ function initializeCustomPresetUi() {
 }
 
 function updateModeUi() {
+  const customVisible = elements.soundMode.value === "custom";
   if (elements.soundMode.value !== "custom") {
     cancelLivePreview();
   }
   elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.value];
-  elements.customPresetPanel.classList.toggle("hidden", elements.soundMode.value !== "custom");
+  elements.customPresetPanel.classList.toggle("hidden", !customVisible);
+  elements.tuningGrid.classList.toggle("custom-hidden", !customVisible);
   syncPresetBrowser();
   syncCustomPresetUi();
 }
