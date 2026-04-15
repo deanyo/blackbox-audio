@@ -10,7 +10,25 @@ const MODE_DESCRIPTIONS = {
     "cinematic chase leans heavier, smoother, and more dramatic, with extra sub body and reduced hiss.",
   space:
     "space ship exaggerates modulation and resonance for a stylized sci-fi pass while still following the flight log.",
+  custom:
+    "custom lets you tune pitch, harmonics, gain, and modulation live, then import or export presets.",
 };
+
+const CUSTOM_PRESET_STORAGE_KEY = "blackbox-audio-custom-preset";
+const CUSTOM_PRESET_FIELDS = [
+  { key: "basePitch", label: "base pitch", min: 40, max: 220, step: 1 },
+  { key: "pitchRange", label: "pitch range", min: 80, max: 520, step: 1 },
+  { key: "gyroPitch", label: "gyro pitch", min: 0, max: 180, step: 1 },
+  { key: "spreadPitch", label: "motor spread", min: 0, max: 220, step: 1 },
+  { key: "harmonic2", label: "2nd harmonic", min: 0, max: 1, step: 0.01 },
+  { key: "harmonic3", label: "3rd harmonic", min: 0, max: 0.6, step: 0.01 },
+  { key: "motorGain", label: "motor gain", min: 0.1, max: 0.8, step: 0.01 },
+  { key: "windGain", label: "wind gain", min: 0, max: 0.3, step: 0.01 },
+  { key: "resonanceGain", label: "resonance gain", min: 0, max: 0.3, step: 0.01 },
+  { key: "transientGain", label: "transient gain", min: 0, max: 0.06, step: 0.001 },
+  { key: "subGain", label: "sub body", min: 0, max: 0.2, step: 0.01 },
+  { key: "spaceGain", label: "space modulation", min: 0, max: 0.3, step: 0.01 },
+];
 
 const MODE_PRESETS = {
   realistic: {
@@ -68,6 +86,12 @@ const elements = {
   loadDemo: document.getElementById("loadDemo"),
   clearLog: document.getElementById("clearLog"),
   soundMode: document.getElementById("soundMode"),
+  customPresetPanel: document.getElementById("customPresetPanel"),
+  customPresetFields: document.getElementById("customPresetFields"),
+  exportPresetButton: document.getElementById("exportPresetButton"),
+  importPresetButton: document.getElementById("importPresetButton"),
+  resetPresetButton: document.getElementById("resetPresetButton"),
+  importPresetFile: document.getElementById("importPresetFile"),
   clipStart: document.getElementById("clipStart"),
   clipDuration: document.getElementById("clipDuration"),
   videoStart: document.getElementById("videoStart"),
@@ -92,16 +116,18 @@ const elements = {
 const state = {
   log: null,
   rawBundle: null,
+  customPreset: loadStoredCustomPreset(),
   render: null,
   audioUrl: null,
   videoUrl: null,
   syncRaf: null,
 };
 
-elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.value];
+initializeCustomPresetUi();
+updateModeUi();
 
 elements.soundMode.addEventListener("change", () => {
-  elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.value];
+  updateModeUi();
 });
 
 elements.clipStart.addEventListener("input", () => {
@@ -118,6 +144,41 @@ elements.embeddedLogSelect.addEventListener("change", () => {
 
 elements.stickOverlayToggle.addEventListener("change", () => {
   refreshStickOverlay();
+});
+
+elements.exportPresetButton.addEventListener("click", () => {
+  exportCustomPreset();
+});
+
+elements.importPresetButton.addEventListener("click", () => {
+  elements.importPresetFile.click();
+});
+
+elements.resetPresetButton.addEventListener("click", () => {
+  setCustomPreset(clonePreset(MODE_PRESETS.realistic));
+  elements.soundMode.value = "custom";
+  updateModeUi();
+  setStatus("custom preset reset to realistic base.");
+});
+
+elements.importPresetFile.addEventListener("change", async (event) => {
+  const [file] = event.target.files;
+  if (!file) {
+    return;
+  }
+
+  try {
+    const imported = JSON.parse(await file.text());
+    const importedPreset = sanitizePreset(imported.preset ?? imported);
+    setCustomPreset(importedPreset);
+    elements.soundMode.value = "custom";
+    updateModeUi();
+    setStatus(`imported preset from ${file.name}.`);
+  } catch (_error) {
+    setStatus("could not import preset json.");
+  } finally {
+    elements.importPresetFile.value = "";
+  }
 });
 
 for (const button of elements.syncNudges) {
@@ -309,6 +370,64 @@ function loadLog(log) {
   elements.clipStart.value = "0";
   elements.clipDuration.value = Math.min(15, log.duration).toFixed(1);
   refreshStickOverlay();
+}
+
+function initializeCustomPresetUi() {
+  elements.customPresetFields.innerHTML = CUSTOM_PRESET_FIELDS.map(
+    (field) => `
+      <label class="preset-field">
+        <span class="preset-label">
+          <span>${field.label}</span>
+          <strong class="preset-value" data-preset-value="${field.key}"></strong>
+        </span>
+        <input
+          class="preset-slider"
+          data-preset-key="${field.key}"
+          type="range"
+          min="${field.min}"
+          max="${field.max}"
+          step="${field.step}"
+        >
+      </label>
+    `,
+  ).join("");
+
+  for (const slider of document.querySelectorAll(".preset-slider")) {
+    slider.addEventListener("input", () => {
+      const nextPreset = {
+        ...state.customPreset,
+        [slider.dataset.presetKey]: Number(slider.value),
+      };
+      setCustomPreset(nextPreset);
+    });
+  }
+
+  syncCustomPresetUi();
+}
+
+function updateModeUi() {
+  elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.value];
+  elements.customPresetPanel.classList.toggle("hidden", elements.soundMode.value !== "custom");
+  syncCustomPresetUi();
+}
+
+function syncCustomPresetUi() {
+  for (const field of CUSTOM_PRESET_FIELDS) {
+    const slider = document.querySelector(`[data-preset-key="${field.key}"]`);
+    const value = document.querySelector(`[data-preset-value="${field.key}"]`);
+    if (!slider || !value) {
+      continue;
+    }
+
+    slider.value = String(state.customPreset[field.key]);
+    value.textContent = formatPresetValue(state.customPreset[field.key], field.step);
+  }
+}
+
+function setCustomPreset(nextPreset) {
+  state.customPreset = sanitizePreset(nextPreset);
+  syncCustomPresetUi();
+  storeCustomPreset(state.customPreset);
 }
 
 function setRawBundle(bundle) {
@@ -610,6 +729,71 @@ function drawStickDot(ctx, centerX, centerY, radius, xNorm, yNorm) {
 
 function setStatus(message) {
   elements.statusStrip.textContent = message;
+}
+
+function getPresetForMode(mode) {
+  return mode === "custom" ? state.customPreset : MODE_PRESETS[mode];
+}
+
+function clonePreset(preset) {
+  return JSON.parse(JSON.stringify(preset));
+}
+
+function sanitizePreset(candidate) {
+  const nextPreset = {};
+
+  for (const field of CUSTOM_PRESET_FIELDS) {
+    nextPreset[field.key] = clampNumber(Number(candidate?.[field.key]), field.min, field.max);
+  }
+
+  return nextPreset;
+}
+
+function loadStoredCustomPreset() {
+  const fallback = clonePreset(MODE_PRESETS.realistic);
+  try {
+    if (!globalThis.localStorage) {
+      return fallback;
+    }
+
+    const stored = globalThis.localStorage.getItem(CUSTOM_PRESET_STORAGE_KEY);
+    return stored ? sanitizePreset(JSON.parse(stored)) : fallback;
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+function storeCustomPreset(preset) {
+  try {
+    globalThis.localStorage?.setItem(CUSTOM_PRESET_STORAGE_KEY, JSON.stringify(preset));
+  } catch (_error) {
+    // Ignore storage failures.
+  }
+}
+
+function formatPresetValue(value, step) {
+  if (step >= 1) {
+    return `${Math.round(value)}`;
+  }
+  if (step >= 0.01) {
+    return value.toFixed(2);
+  }
+  return value.toFixed(3);
+}
+
+function exportCustomPreset() {
+  const payload = {
+    name: "blackbox-audio-custom-preset",
+    version: 1,
+    preset: state.customPreset,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "blackbox-audio-preset.json";
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(value) {
@@ -964,7 +1148,7 @@ function reduceFrameRate(frames) {
 }
 
 function synthesizeClip(log, options) {
-  const preset = MODE_PRESETS[options.mode];
+  const preset = getPresetForMode(options.mode);
   if (!preset) {
     throw new Error("Unknown sound mode.");
   }
@@ -1175,7 +1359,7 @@ function createPanArray(count) {
 
 function buildDemoCsv() {
   const lines = [
-    "time (us),motor[0],motor[1],motor[2],motor[3],rcCommand[0],rcCommand[1],rcCommand[2],rcCommand[3],gyroADC[0],gyroADC[1],gyroADC[2]",
+    "time (us),motor[0],motor[1],motor[2],motor[3],eRPM[0],eRPM[1],eRPM[2],eRPM[3],rcCommand[0],rcCommand[1],rcCommand[2],rcCommand[3],gyroADC[0],gyroADC[1],gyroADC[2]",
   ];
   const duration = 20;
   const rate = 500;
@@ -1203,6 +1387,9 @@ function buildDemoCsv() {
     ].map((value, motorIndex) =>
       clampNumber(value + 0.02 * Math.sin(time * (8 + motorIndex * 1.3)), 0.05, 0.98),
     );
+    const rpms = motors.map((motor, motorIndex) =>
+      Math.round(14000 + motor * 26000 + Math.sin(time * (11 + motorIndex * 0.7)) * 900),
+    );
 
     const gyroX = Math.sin(time * 2.7) * 180 + Math.sin(time * 13.2) * 28;
     const gyroY = Math.sin(time * 1.8 + 1.1) * 220 + Math.sin(time * 10.8) * 22;
@@ -1212,6 +1399,7 @@ function buildDemoCsv() {
       [
         Math.round(time * 1_000_000),
         ...motors.map((motor) => Math.round(1000 + motor * 900)),
+        ...rpms,
         Math.round(roll * 500),
         Math.round(pitch * 500),
         Math.round(yaw * 500),

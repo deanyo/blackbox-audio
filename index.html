@@ -98,6 +98,7 @@
               <option value="realistic">realistic tinywhoop</option>
               <option value="cinematic">cinematic chase</option>
               <option value="space">space ship</option>
+              <option value="custom">custom</option>
             </select>
           </label>
 
@@ -138,6 +139,24 @@
         <div class="mode-copy" id="modeDescription">
           realistic tinywhoop favors buzzy harmonics, lift-dependent wind, and subtle frame chatter.
         </div>
+
+        <section class="custom-panel hidden" id="customPresetPanel">
+          <div class="section-head compact-head">
+            <div>
+              <h2>custom preset</h2>
+              <p>tune your own version, then export or import presets as json.</p>
+            </div>
+          </div>
+
+          <div class="preset-actions">
+            <button id="exportPresetButton" type="button" class="ghost-btn">export preset</button>
+            <button id="importPresetButton" type="button" class="ghost-btn">import preset</button>
+            <button id="resetPresetButton" type="button" class="ghost-btn">reset custom</button>
+            <input id="importPresetFile" class="hidden" type="file" accept=".json,application/json">
+          </div>
+
+          <div class="preset-grid" id="customPresetFields"></div>
+        </section>
 
         <div class="action-row">
           <button id="renderButton" class="primary-btn">render wav</button>

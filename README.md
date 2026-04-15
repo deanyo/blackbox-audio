@@ -36,12 +36,14 @@ this prototype now supports raw `.bbl` / `.bfl` input as well as csv.
   - `realistic tinywhoop`
   - `cinematic chase`
   - `space ship`
+  - `custom`
 - toggle wind noise and frame resonance
 - wind is currently experimental and is disabled by default
 - upload an optional dvr video and audition the rendered clip in sync
 - preview a virtual stick cam overlay when roll, pitch, yaw, and throttle fields are present
 - choose between multiple embedded logs when a raw blackbox file contains more than one flight
 - nudge video sync start quickly in the ui without typing offsets by hand
+- tune a custom preset with sliders and import/export it as json
 - download the synthesized audio as wav
 
 for direct raw-log support, this repo now vendors and adapts a minimal parser slice from betaflight blackbox explorer. because that upstream code is gpl-3.0, this project is now licensed under gpl-3.0 as well.

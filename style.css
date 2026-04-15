@@ -206,6 +206,10 @@ body::before {
   margin-bottom: 16px;
 }
 
+.compact-head {
+  margin-bottom: 12px;
+}
+
 .section-head h2 {
   font-family: "Space Grotesk", sans-serif;
   color: var(--accent);
@@ -311,6 +315,51 @@ code {
 
 .nudge-row {
   margin: -2px 0 14px;
+}
+
+.custom-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(44, 41, 64, 0.52);
+}
+
+.preset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.preset-field {
+  display: grid;
+  gap: 6px;
+}
+
+.preset-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.preset-value {
+  color: var(--accent);
+}
+
+.preset-slider {
+  width: 100%;
+  accent-color: var(--accent);
 }
 
 .primary-btn,
@@ -439,7 +488,8 @@ video {
 @media (max-width: 940px) {
   .summary-grid,
   .main-grid,
-  .field-grid {
+  .field-grid,
+  .preset-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -455,6 +505,10 @@ video {
   }
 
   .action-row > * {
+    width: 100%;
+  }
+
+  .preset-actions > *:not(input) {
     width: 100%;
   }
 }
