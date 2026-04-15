@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Static browser tool for turning Betaflight blackbox logs into synthetic tinywhoop audio for DVR footage.">
   <meta property="og:title" content="blackbox audio">
-  <meta property="og:description" content="Render believable tinywhoop sound from Betaflight blackbox CSV, sync it against DVR, and export WAV in the browser.">
+  <meta property="og:description" content="Render believable tinywhoop sound from Betaflight raw blackbox logs or CSV, sync it against DVR, and export WAV in the browser.">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#13111a">
   <title>blackbox audio</title>
@@ -21,7 +21,7 @@
       <h1>blackbox audio</h1>
       <p class="subtitle">synthetic tinywhoop sound from betaflight logs</p>
       <nav class="nav-tabs">
-        <a href="#lab" class="nav-btn active">csv lab</a>
+        <a href="#lab" class="nav-btn active">log lab</a>
         <a href="#preview" class="nav-btn">sync preview</a>
         <a href="#notes" class="nav-btn">deployment notes</a>
       </nav>
@@ -38,7 +38,7 @@
       </article>
       <article class="summary-card">
         <div class="summary-label">detected</div>
-        <div class="summary-value" id="fieldSummary">awaiting csv</div>
+        <div class="summary-value" id="fieldSummary">awaiting log</div>
       </article>
       <article class="summary-card">
         <div class="summary-label">render</div>
@@ -55,16 +55,16 @@
         <div class="section-head">
           <div>
             <h2>inputs</h2>
-            <p>csv first. optional dvr video for sync preview.</p>
+            <p>raw log first. optional dvr video for sync preview.</p>
           </div>
         </div>
 
         <label class="upload-card">
-          <span class="upload-title">betaflight blackbox csv</span>
+          <span class="upload-title">betaflight blackbox file</span>
           <span class="upload-copy">
-            best with <code>time</code>, <code>motor[0..3]</code>, <code>rcCommand[3]</code>, and <code>gyroADC[0..2]</code> or equivalent exported columns.
+            accepts raw <code>.bbl</code> / <code>.bfl</code> logs directly, or csv exports with <code>time</code>, <code>motor[0..3]</code>, <code>rcCommand[3]</code>, and <code>gyroADC[0..2]</code>.
           </span>
-          <input id="csvFile" type="file" accept=".csv,text/csv">
+          <input id="csvFile" type="file" accept=".bbl,.bfl,.csv,text/csv,application/octet-stream">
         </label>
 
         <div class="action-row">
@@ -85,7 +85,7 @@
         <div class="mini-grid">
           <article class="mini-card">
             <div class="mini-title">current scope</div>
-            <p>browser-only csv workflow. raw <code>.bbl</code> parsing is feasible, but the cleanest route reuses betaflight parser code and needs an explicit licensing decision.</p>
+            <p>browser-only workflow. raw <code>.bbl</code> parsing is enabled via an adapted betaflight parser path, with the repo licensed accordingly.</p>
           </article>
           <article class="mini-card">
             <div class="mini-title">why this works</div>
@@ -163,7 +163,7 @@
           </div>
         </div>
         <audio id="audioPlayer" controls preload="none"></audio>
-        <div class="status-panel" id="statusStrip">load a csv or the demo flight to begin.</div>
+        <div class="status-panel" id="statusStrip">load a raw log, csv, or the demo flight to begin.</div>
       </section>
 
       <section class="card">
@@ -220,6 +220,10 @@
 
     <footer class="footer">
       <a href="https://github.com/deanyo/blackbox-audio" target="_blank" rel="noreferrer">src</a>
+      <span>·</span>
+      <a href="./LICENSE" target="_blank" rel="noreferrer">gpl-3.0</a>
+      <span>·</span>
+      <a href="./THIRD_PARTY_NOTICES.md" target="_blank" rel="noreferrer">third-party notices</a>
     </footer>
   </div>
 

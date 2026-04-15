@@ -1,6 +1,6 @@
 # blackbox audio
 
-static browser prototype for turning betaflight blackbox csv into a synthesized motor audio track for dvr footage.
+static browser prototype for turning betaflight blackbox logs into a synthesized motor audio track for dvr footage.
 
 ## why this is viable
 
@@ -27,8 +27,9 @@ it cannot recover true acoustic placement, room reflections, duct resonance, pro
 
 ## current scope
 
-this prototype intentionally starts with csv input instead of raw `.bbl`/`.bfl` parsing.
+this prototype now supports raw `.bbl` / `.bfl` input as well as csv.
 
+- load raw blackbox logs in the browser
 - load blackbox csv in the browser
 - Detect `time`, `motor[...]`, throttle, and gyro columns heuristically
 - render one of three audio modes:
@@ -39,6 +40,8 @@ this prototype intentionally starts with csv input instead of raw `.bbl`/`.bfl` 
 - upload an optional dvr video and audition the rendered clip in sync
 - preview a virtual stick cam overlay when roll, pitch, yaw, and throttle fields are present
 - download the synthesized audio as wav
+
+for direct raw-log support, this repo now vendors and adapts a minimal parser slice from betaflight blackbox explorer. because that upstream code is gpl-3.0, this project is now licensed under gpl-3.0 as well.
 
 ## deployment
 
@@ -52,7 +55,7 @@ python3 -m http.server 8000
 
 then open `http://localhost:8000`.
 
-if you do not have a csv ready, click `load demo flight`.
+if you do not have a log ready, click `load demo flight`.
 
 cloudflare workers only become worth adding when one of these becomes real:
 
@@ -63,7 +66,7 @@ cloudflare workers only become worth adding when one of these becomes real:
 
 ## best next steps
 
-1. decide whether the repo is willing to adopt a gpl-compatible path for direct `.bbl` support by reusing/adapting betaflight blackbox explorer parser code.
-2. prefer real rpm telemetry when present instead of estimating pitch from motor command.
-3. add a manual sync marker workflow using arming beep alignment against dvr audio.
+1. prefer real rpm telemetry when present instead of estimating pitch from motor command.
+2. add a manual sync marker workflow using arming beep alignment against dvr audio.
+3. let users choose between multiple flights embedded in a single raw blackbox file.
 4. export muxed video+audio plus stick overlay, likely via ffmpeg.wasm if the static-site requirement holds.

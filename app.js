@@ -1,3 +1,5 @@
+import { parseBlackboxBinaryLog } from "./vendor/betaflight/decoder-adapter.js";
+
 const SAMPLE_RATE = 24000;
 const MAX_ANALYSIS_RATE = 600;
 const FADE_TIME_SECONDS = 0.02;
@@ -118,8 +120,10 @@ elements.csvFile.addEventListener("change", async (event) => {
 
   try {
     setStatus(`parsing ${file.name}...`);
-    const text = await file.text();
-    loadLog(parseBlackboxCsv(text, file.name));
+    const log = isRawBlackboxFile(file)
+      ? normalizeParsedLog(parseBlackboxBinaryLog(await file.arrayBuffer(), file.name))
+      : parseBlackboxCsv(await file.text(), file.name);
+    loadLog(log);
     setStatus(`loaded ${file.name}. ready to render audio.`);
   } catch (error) {
     setStatus(error.message);
@@ -154,7 +158,7 @@ elements.clearLog.addEventListener("click", () => {
   state.log = null;
   elements.csvFile.value = "";
   elements.inputSummary.textContent = "no log loaded";
-  elements.fieldSummary.textContent = "awaiting csv";
+  elements.fieldSummary.textContent = "awaiting log";
   elements.renderSummary.textContent = "not rendered";
   elements.clipStart.value = "0";
   elements.clipDuration.value = "12";
@@ -164,7 +168,7 @@ elements.clearLog.addEventListener("click", () => {
 
 elements.renderButton.addEventListener("click", async () => {
   if (!state.log) {
-    setStatus("load a blackbox csv or the demo flight first.");
+    setStatus("load a blackbox log or the demo flight first.");
     return;
   }
 
@@ -554,12 +558,6 @@ function parseBlackboxCsv(text, sourceName) {
 
   const timeScale = guessTimeScale(headers[mapping.timeIndex]);
   const rawFrames = [];
-  let motorMin = Number.POSITIVE_INFINITY;
-  let motorMax = Number.NEGATIVE_INFINITY;
-  let throttleMin = Number.POSITIVE_INFINITY;
-  let throttleMax = Number.NEGATIVE_INFINITY;
-  const stickMins = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
-  const stickMaxs = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
 
   for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex];
@@ -583,96 +581,18 @@ function parseBlackboxCsv(text, sourceName) {
     const stickAxes = mapping.stickIndices.map((index) => Number(row[index]));
     const usableStickAxes = stickAxes.every((value) => Number.isFinite(value)) ? stickAxes : [];
 
-    for (const motor of motors) {
-      motorMin = Math.min(motorMin, motor);
-      motorMax = Math.max(motorMax, motor);
-    }
-
-    if (throttle !== null) {
-      throttleMin = Math.min(throttleMin, throttle);
-      throttleMax = Math.max(throttleMax, throttle);
-    }
-
-    if (usableStickAxes.length === 3) {
-      for (let axis = 0; axis < 3; axis += 1) {
-        stickMins[axis] = Math.min(stickMins[axis], usableStickAxes[axis]);
-        stickMaxs[axis] = Math.max(stickMaxs[axis], usableStickAxes[axis]);
-      }
-    }
-
     rawFrames.push({ time, motors, throttle, gyro: usableGyro, stickAxes: usableStickAxes });
   }
 
-  if (rawFrames.length < 4) {
-    throw new Error("CSV parsed, but there were not enough numeric flight samples.");
-  }
-
-  rawFrames.sort((left, right) => left.time - right.time);
-  const reducedFrames = reduceFrameRate(removeDuplicateTimes(rawFrames));
-  const safeMotorMin = Number.isFinite(motorMin) ? motorMin : 1000;
-  const safeMotorRange = Math.max(1, motorMax - safeMotorMin);
-  const hasThrottle = mapping.throttleIndex !== -1 && Number.isFinite(throttleMax);
-  const safeThrottleMin = hasThrottle ? throttleMin : 1000;
-  const safeThrottleRange = hasThrottle ? Math.max(1, throttleMax - safeThrottleMin) : 1;
-  const hasStickAxes =
-    mapping.stickIndices.length === 3 && stickMaxs.every((value) => Number.isFinite(value));
-
-  const frames = reducedFrames.map((frame) => {
-    const motorNorms = frame.motors.map((motor) =>
-      clampNumber((motor - safeMotorMin) / safeMotorRange, 0, 1),
-    );
-    const avgMotor =
-      motorNorms.reduce((sum, value) => sum + value, 0) / Math.max(1, motorNorms.length);
-    const throttleNorm =
-      frame.throttle === null
-        ? avgMotor
-        : clampNumber((frame.throttle - safeThrottleMin) / safeThrottleRange, 0, 1);
-    const gyroNorm =
-      frame.gyro.length >= 3
-        ? clampNumber(
-            Math.sqrt(
-              frame.gyro[0] * frame.gyro[0] +
-                frame.gyro[1] * frame.gyro[1] +
-                frame.gyro[2] * frame.gyro[2],
-            ) / 900,
-            0,
-            1,
-          )
-        : 0;
-    const sticks =
-      frame.stickAxes.length === 3
-        ? {
-            roll: normalizeStickAxis(frame.stickAxes[0], stickMins[0], stickMaxs[0]),
-            pitch: normalizeStickAxis(frame.stickAxes[1], stickMins[1], stickMaxs[1]),
-            yaw: normalizeStickAxis(frame.stickAxes[2], stickMins[2], stickMaxs[2]),
-            throttle: throttleNorm,
-          }
-        : null;
-
-    return {
-      time: frame.time - reducedFrames[0].time,
-      motors: motorNorms,
-      avgMotor,
-      throttle: throttleNorm,
-      gyro: gyroNorm,
-      sticks,
-    };
-  });
-
-  const duration = Math.max(0.1, frames[frames.length - 1].time);
-
-  return {
+  return normalizeParsedLog({
     sourceName,
-    frames,
-    duration,
-    motorCount: frames[0].motors.length,
-    sticksAvailable: frames.some((frame) => frame.sticks),
-    fieldSummary: {
-      throttle: hasThrottle ? "throttle detected" : "throttle derived from motor average",
-      gyro: mapping.gyroIndices.length >= 3 ? "gyro detected" : "gyro missing",
-      sticks: hasStickAxes ? "stick data detected" : "stick data missing",
+    rawFrames,
+    detection: {
+      hasThrottle: mapping.throttleIndex !== -1,
+      hasGyro: mapping.gyroIndices.length >= 3,
+      hasStickAxes: mapping.stickIndices.length === 3,
     },
-  };
+  });
 }
 
 function parseCsv(text) {
@@ -779,6 +699,108 @@ function detectColumns(headers) {
     gyroIndices,
     stickIndices,
   };
+}
+
+function normalizeParsedLog(parsed) {
+  const { rawFrames, sourceName, detection } = parsed;
+  if (rawFrames.length < 4) {
+    throw new Error("parsed the log, but there were not enough usable flight samples.");
+  }
+
+  rawFrames.sort((left, right) => left.time - right.time);
+  const reducedFrames = reduceFrameRate(removeDuplicateTimes(rawFrames));
+  let motorMin = Number.POSITIVE_INFINITY;
+  let motorMax = Number.NEGATIVE_INFINITY;
+  let throttleMin = Number.POSITIVE_INFINITY;
+  let throttleMax = Number.NEGATIVE_INFINITY;
+  const stickMins = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+  const stickMaxs = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+
+  for (const frame of reducedFrames) {
+    for (const motor of frame.motors) {
+      motorMin = Math.min(motorMin, motor);
+      motorMax = Math.max(motorMax, motor);
+    }
+
+    if (frame.throttle !== null && Number.isFinite(frame.throttle)) {
+      throttleMin = Math.min(throttleMin, frame.throttle);
+      throttleMax = Math.max(throttleMax, frame.throttle);
+    }
+
+    if (frame.stickAxes?.length === 3) {
+      for (let axis = 0; axis < 3; axis += 1) {
+        stickMins[axis] = Math.min(stickMins[axis], frame.stickAxes[axis]);
+        stickMaxs[axis] = Math.max(stickMaxs[axis], frame.stickAxes[axis]);
+      }
+    }
+  }
+
+  const safeMotorMin = Number.isFinite(motorMin) ? motorMin : 1000;
+  const safeMotorRange = Math.max(1, motorMax - safeMotorMin);
+  const hasThrottle = detection.hasThrottle && Number.isFinite(throttleMax);
+  const safeThrottleMin = hasThrottle ? throttleMin : 1000;
+  const safeThrottleRange = hasThrottle ? Math.max(1, throttleMax - safeThrottleMin) : 1;
+  const hasStickAxes =
+    detection.hasStickAxes && stickMaxs.every((value) => Number.isFinite(value));
+
+  const frames = reducedFrames.map((frame) => {
+    const motorNorms = frame.motors.map((motor) =>
+      clampNumber((motor - safeMotorMin) / safeMotorRange, 0, 1),
+    );
+    const avgMotor =
+      motorNorms.reduce((sum, value) => sum + value, 0) / Math.max(1, motorNorms.length);
+    const throttleNorm =
+      frame.throttle === null
+        ? avgMotor
+        : clampNumber((frame.throttle - safeThrottleMin) / safeThrottleRange, 0, 1);
+    const gyroNorm =
+      frame.gyro.length >= 3
+        ? clampNumber(
+            Math.sqrt(
+              frame.gyro[0] * frame.gyro[0] +
+                frame.gyro[1] * frame.gyro[1] +
+                frame.gyro[2] * frame.gyro[2],
+            ) / 900,
+            0,
+            1,
+          )
+        : 0;
+    const sticks =
+      frame.stickAxes?.length === 3
+        ? {
+            roll: normalizeStickAxis(frame.stickAxes[0], stickMins[0], stickMaxs[0]),
+            pitch: normalizeStickAxis(frame.stickAxes[1], stickMins[1], stickMaxs[1]),
+            yaw: normalizeStickAxis(frame.stickAxes[2], stickMins[2], stickMaxs[2]),
+            throttle: throttleNorm,
+          }
+        : null;
+
+    return {
+      time: frame.time - reducedFrames[0].time,
+      motors: motorNorms,
+      avgMotor,
+      throttle: throttleNorm,
+      gyro: gyroNorm,
+      sticks,
+    };
+  });
+
+  return {
+    sourceName,
+    frames,
+    duration: Math.max(0.1, frames[frames.length - 1].time),
+    motorCount: frames[0].motors.length,
+    sticksAvailable: frames.some((frame) => frame.sticks),
+    fieldSummary: {
+      throttle: hasThrottle ? "throttle detected" : "throttle derived from motor average",
+      gyro: detection.hasGyro ? "gyro detected" : "gyro missing",
+      sticks: hasStickAxes ? "stick data detected" : "stick data missing",
+    },
+  };
+}
+
+function isRawBlackboxFile(file) {
+  return /\.(bbl|bfl)$/i.test(file.name);
 }
 
 function guessTimeScale(header) {
