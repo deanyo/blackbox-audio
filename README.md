@@ -37,6 +37,7 @@ this prototype now supports raw `.bbl` / `.bfl` input as well as csv.
   - `cinematic chase`
   - `space ship`
 - toggle wind noise and frame resonance
+- wind is currently experimental and is disabled by default
 - upload an optional dvr video and audition the rendered clip in sync
 - preview a virtual stick cam overlay when roll, pitch, yaw, and throttle fields are present
 - choose between multiple embedded logs when a raw blackbox file contains more than one flight
