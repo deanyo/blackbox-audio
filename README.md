@@ -31,7 +31,7 @@ this prototype now supports raw `.bbl` / `.bfl` input as well as csv.
 
 - load raw blackbox logs in the browser
 - load blackbox csv in the browser
-- Detect `time`, `motor[...]`, throttle, and gyro columns heuristically
+- detect `time`, `motor[...]`, throttle, gyro, and rpm/eRPM columns heuristically
 - render one of three audio modes:
   - `realistic tinywhoop`
   - `cinematic chase`
@@ -42,6 +42,8 @@ this prototype now supports raw `.bbl` / `.bfl` input as well as csv.
 - download the synthesized audio as wav
 
 for direct raw-log support, this repo now vendors and adapts a minimal parser slice from betaflight blackbox explorer. because that upstream code is gpl-3.0, this project is now licensed under gpl-3.0 as well.
+
+when rpm or eRPM data is present, the synth now prefers that for pitch movement instead of relying only on motor command level.
 
 ## deployment
 

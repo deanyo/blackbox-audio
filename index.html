@@ -23,11 +23,10 @@
       <nav class="nav-tabs">
         <a href="#lab" class="nav-btn active">log lab</a>
         <a href="#preview" class="nav-btn">sync preview</a>
-        <a href="#notes" class="nav-btn">deployment notes</a>
       </nav>
       <div class="hero-tag">
         <span class="dot"></span>
-        <span>static-first · github pages friendly · optional cloudflare later</span>
+        <span>raw .bbl / .bfl + csv · browser render</span>
       </div>
     </header>
 
@@ -46,10 +45,6 @@
       </article>
     </section>
 
-    <section class="info-banner">
-      the useful bit is already in the log: motor command contour, throttle, and gyro. this version turns that into a plausible soundtrack rather than pretending to reconstruct a real microphone recording.
-    </section>
-
     <section class="main-grid" id="lab">
       <section class="card">
         <div class="section-head">
@@ -62,7 +57,7 @@
         <label class="upload-card">
           <span class="upload-title">betaflight blackbox file</span>
           <span class="upload-copy">
-            accepts raw <code>.bbl</code> / <code>.bfl</code> logs directly, or csv exports with <code>time</code>, <code>motor[0..3]</code>, <code>rcCommand[3]</code>, and <code>gyroADC[0..2]</code>.
+            accepts raw <code>.bbl</code> / <code>.bfl</code> logs directly, or csv exports with time, motor, throttle, gyro, and optionally rpm fields.
           </span>
           <input id="csvFile" type="file" accept=".bbl,.bfl,.csv,text/csv,application/octet-stream">
         </label>
@@ -81,24 +76,13 @@
           <input id="stickOverlayToggle" type="checkbox" checked>
           <span>show stick cam overlay in preview</span>
         </label>
-
-        <div class="mini-grid">
-          <article class="mini-card">
-            <div class="mini-title">current scope</div>
-            <p>browser-only workflow. raw <code>.bbl</code> parsing is enabled via an adapted betaflight parser path, with the repo licensed accordingly.</p>
-          </article>
-          <article class="mini-card">
-            <div class="mini-title">why this works</div>
-            <p>motor output level gives pitch and energy. gyro adds frame buzz and propwash drama.</p>
-          </article>
-        </div>
       </section>
 
       <section class="card">
         <div class="section-head">
           <div>
             <h2>synthesis</h2>
-            <p>pick the voice, clip window, and turbulence model.</p>
+            <p>pick the voice, clip window, and extra layers.</p>
           </div>
         </div>
 
@@ -159,7 +143,7 @@
         <div class="section-head">
           <div>
             <h2>audio preview</h2>
-            <p>rendered locally in the browser, no upload needed.</p>
+            <p>rendered locally in the browser.</p>
           </div>
         </div>
         <audio id="audioPlayer" controls preload="none"></audio>
@@ -170,7 +154,7 @@
         <div class="section-head">
           <div>
             <h2>dvr sync</h2>
-            <p>set the video start field to align the rendered clip with footage. stick cam is preview-only for now.</p>
+            <p>set the video start field to align the rendered clip with footage.</p>
           </div>
         </div>
         <div class="video-stage">
@@ -178,44 +162,6 @@
           <canvas id="stickOverlayCanvas" class="stick-overlay"></canvas>
         </div>
       </section>
-    </section>
-
-    <section class="notes-grid" id="notes">
-      <article class="card">
-        <div class="section-head">
-          <div>
-            <h2>what maps well</h2>
-            <p>the strong part of the idea.</p>
-          </div>
-        </div>
-        <p class="body-copy">
-          motor command history gives pitch contour, rough loudness, rapid spool changes, and imbalance between motors. that is enough to fake convincing whoop behaviour, especially once you add a turbulence layer and a bit of frame buzz.
-        </p>
-      </article>
-
-      <article class="card">
-        <div class="section-head">
-          <div>
-            <h2>what stays approximate</h2>
-            <p>where the model stops being truth.</p>
-          </div>
-        </div>
-        <p class="body-copy">
-          the log does not contain actual mic position, room reflections, camera mount resonance, prop geometry, or true acoustic wind. if rpm telemetry is missing, pitch is estimated from motor command rather than measured rotor speed.
-        </p>
-      </article>
-
-      <article class="card">
-        <div class="section-head">
-          <div>
-            <h2>deployment path</h2>
-            <p>keep it simple first.</p>
-          </div>
-        </div>
-        <p class="body-copy">
-          github pages is enough for this current browser-only build. a cloudflare worker only becomes useful if you want raw log decoding helpers, muxed video export jobs, saved presets, or a shareable render api.
-        </p>
-      </article>
     </section>
 
     <footer class="footer">

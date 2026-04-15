@@ -23,6 +23,11 @@ function getFrameIndexMap(frameDef) {
   const motors = Array.from({ length: 8 }, (_, index) => nameToIndex[`motor[${index}]`]).filter(
     (value) => value !== undefined,
   );
+  const rpms = Array.from({ length: 8 }, (_, index) =>
+    nameToIndex[`eRPM[${index}]`] ??
+    nameToIndex[`rpm[${index}]`] ??
+    nameToIndex[`motorRPM[${index}]`],
+  ).filter((value) => value !== undefined);
   const gyro = [0, 1, 2]
     .map((axis) => nameToIndex[`gyroADC[${axis}]`] ?? nameToIndex[`gyroData[${axis}]`])
     .filter((value) => value !== undefined);
@@ -32,6 +37,7 @@ function getFrameIndexMap(frameDef) {
 
   return {
     motors,
+    rpms,
     throttle: nameToIndex["rcCommand[3]"] ?? nameToIndex["setpoint[3]"],
     gyro,
     stickAxes,
@@ -59,6 +65,7 @@ function parseSingleLog(bytes, startOffset, endOffset) {
     }
 
     const gyro = fieldMap.gyro.map((index) => frame[index]).filter((value) => Number.isFinite(value));
+    const rpms = fieldMap.rpms.map((index) => frame[index]).filter((value) => Number.isFinite(value));
     const stickAxes = fieldMap.stickAxes
       .map((index) => frame[index])
       .filter((value) => Number.isFinite(value));
@@ -66,6 +73,7 @@ function parseSingleLog(bytes, startOffset, endOffset) {
     rawFrames.push({
       time: frame[FlightLogParser.prototype.FLIGHT_LOG_FIELD_INDEX_TIME] / 1_000_000,
       motors,
+      rpms,
       throttle:
         fieldMap.throttle === undefined || !Number.isFinite(frame[fieldMap.throttle])
           ? null
@@ -83,6 +91,7 @@ function parseSingleLog(bytes, startOffset, endOffset) {
       hasThrottle: fieldMap.throttle !== undefined,
       hasGyro: fieldMap.gyro.length >= 3,
       hasStickAxes: fieldMap.stickAxes.length === 3,
+      hasRpm: fieldMap.rpms.length >= Math.min(2, fieldMap.motors.length),
     },
   };
 }

@@ -21,9 +21,9 @@ const MODE_PRESETS = {
     harmonic2: 0.42,
     harmonic3: 0.18,
     motorGain: 0.46,
-    windGain: 0.22,
+    windGain: 0.16,
     resonanceGain: 0.11,
-    transientGain: 0.055,
+    transientGain: 0.018,
     subGain: 0,
     spaceGain: 0,
   },
@@ -35,9 +35,9 @@ const MODE_PRESETS = {
     harmonic2: 0.5,
     harmonic3: 0.24,
     motorGain: 0.42,
-    windGain: 0.16,
+    windGain: 0.12,
     resonanceGain: 0.16,
-    transientGain: 0.04,
+    transientGain: 0.014,
     subGain: 0.1,
     spaceGain: 0,
   },
@@ -49,9 +49,9 @@ const MODE_PRESETS = {
     harmonic2: 0.58,
     harmonic3: 0.28,
     motorGain: 0.4,
-    windGain: 0.11,
+    windGain: 0.09,
     resonanceGain: 0.09,
-    transientGain: 0.05,
+    transientGain: 0.016,
     subGain: 0.03,
     spaceGain: 0.18,
   },
@@ -274,6 +274,7 @@ function loadLog(log) {
   elements.inputSummary.textContent = `${log.sourceName} · ${formatSeconds(log.duration)} · ${log.frames.length.toLocaleString()} samples`;
   elements.fieldSummary.textContent = [
     `${log.motorCount} motors`,
+    log.fieldSummary.rpm,
     log.fieldSummary.throttle,
     log.fieldSummary.gyro,
     log.fieldSummary.sticks,
@@ -578,10 +579,19 @@ function parseBlackboxCsv(text, sourceName) {
 
     const gyro = mapping.gyroIndices.map((index) => Number(row[index]));
     const usableGyro = gyro.every((value) => Number.isFinite(value)) ? gyro : [];
+    const rpms = mapping.rpmIndices.map((index) => Number(row[index]));
+    const usableRpms = rpms.every((value) => Number.isFinite(value)) ? rpms : [];
     const stickAxes = mapping.stickIndices.map((index) => Number(row[index]));
     const usableStickAxes = stickAxes.every((value) => Number.isFinite(value)) ? stickAxes : [];
 
-    rawFrames.push({ time, motors, throttle, gyro: usableGyro, stickAxes: usableStickAxes });
+    rawFrames.push({
+      time,
+      motors,
+      rpms: usableRpms,
+      throttle,
+      gyro: usableGyro,
+      stickAxes: usableStickAxes,
+    });
   }
 
   return normalizeParsedLog({
@@ -591,6 +601,7 @@ function parseBlackboxCsv(text, sourceName) {
       hasThrottle: mapping.throttleIndex !== -1,
       hasGyro: mapping.gyroIndices.length >= 3,
       hasStickAxes: mapping.stickIndices.length === 3,
+      hasRpm: mapping.rpmIndices.length >= Math.min(2, mapping.motorIndices.length),
     },
   });
 }
@@ -683,6 +694,14 @@ function detectColumns(headers) {
     .sort((left, right) => left.axis - right.axis)
     .slice(0, 3)
     .map((entry) => entry.index);
+  const rpmIndices = normalized
+    .map((header, index) => {
+      const match = header.match(/(?:^|[^a-z])(e?rpm|motorrpm)[\s_]*\[?(\d+)\]?/i);
+      return match ? { index, motorNumber: Number(match[2]) } : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.motorNumber - right.motorNumber)
+    .map((entry) => entry.index);
   const stickIndices = [0, 1, 2]
     .map((axis) =>
       normalized.findIndex(
@@ -696,6 +715,7 @@ function detectColumns(headers) {
     timeIndex,
     throttleIndex,
     motorIndices,
+    rpmIndices,
     gyroIndices,
     stickIndices,
   };
@@ -711,6 +731,8 @@ function normalizeParsedLog(parsed) {
   const reducedFrames = reduceFrameRate(removeDuplicateTimes(rawFrames));
   let motorMin = Number.POSITIVE_INFINITY;
   let motorMax = Number.NEGATIVE_INFINITY;
+  let rpmMin = Number.POSITIVE_INFINITY;
+  let rpmMax = Number.NEGATIVE_INFINITY;
   let throttleMin = Number.POSITIVE_INFINITY;
   let throttleMax = Number.NEGATIVE_INFINITY;
   const stickMins = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
@@ -720,6 +742,11 @@ function normalizeParsedLog(parsed) {
     for (const motor of frame.motors) {
       motorMin = Math.min(motorMin, motor);
       motorMax = Math.max(motorMax, motor);
+    }
+
+    for (const rpm of frame.rpms ?? []) {
+      rpmMin = Math.min(rpmMin, rpm);
+      rpmMax = Math.max(rpmMax, rpm);
     }
 
     if (frame.throttle !== null && Number.isFinite(frame.throttle)) {
@@ -737,6 +764,9 @@ function normalizeParsedLog(parsed) {
 
   const safeMotorMin = Number.isFinite(motorMin) ? motorMin : 1000;
   const safeMotorRange = Math.max(1, motorMax - safeMotorMin);
+  const hasRpm = detection.hasRpm && Number.isFinite(rpmMax);
+  const safeRpmMin = hasRpm ? rpmMin : 0;
+  const safeRpmRange = hasRpm ? Math.max(1, rpmMax - safeRpmMin) : 1;
   const hasThrottle = detection.hasThrottle && Number.isFinite(throttleMax);
   const safeThrottleMin = hasThrottle ? throttleMin : 1000;
   const safeThrottleRange = hasThrottle ? Math.max(1, throttleMax - safeThrottleMin) : 1;
@@ -746,6 +776,9 @@ function normalizeParsedLog(parsed) {
   const frames = reducedFrames.map((frame) => {
     const motorNorms = frame.motors.map((motor) =>
       clampNumber((motor - safeMotorMin) / safeMotorRange, 0, 1),
+    );
+    const rpmNorms = (frame.rpms ?? []).map((rpm) =>
+      clampNumber((rpm - safeRpmMin) / safeRpmRange, 0, 1),
     );
     const avgMotor =
       motorNorms.reduce((sum, value) => sum + value, 0) / Math.max(1, motorNorms.length);
@@ -778,6 +811,7 @@ function normalizeParsedLog(parsed) {
     return {
       time: frame.time - reducedFrames[0].time,
       motors: motorNorms,
+      rpms: rpmNorms,
       avgMotor,
       throttle: throttleNorm,
       gyro: gyroNorm,
@@ -792,6 +826,7 @@ function normalizeParsedLog(parsed) {
     motorCount: frames[0].motors.length,
     sticksAvailable: frames.some((frame) => frame.sticks),
     fieldSummary: {
+      rpm: hasRpm ? "rpm detected" : "rpm missing",
       throttle: hasThrottle ? "throttle detected" : "throttle derived from motor average",
       gyro: detection.hasGyro ? "gyro detected" : "gyro missing",
       sticks: hasStickAxes ? "stick data detected" : "stick data missing",
@@ -865,8 +900,8 @@ function synthesizeClip(log, options) {
   const endTime = clipStart + clipDuration;
   let frameIndex = findFrameIndex(log.frames, clipStart);
   let previousAvg = 0;
-  let windState = 0;
-  let hissState = 0;
+  let windSlow = 0;
+  let windFast = 0;
   let resonancePhase = 0;
   let fmPhase = 0;
   let subPhase = 0;
@@ -890,10 +925,16 @@ function synthesizeClip(log, options) {
     let avgMotor = 0;
     let variance = 0;
     const motors = new Array(motorCount);
+    const pitchDrivers = new Array(motorCount);
 
     for (let motorIndex = 0; motorIndex < motorCount; motorIndex += 1) {
       const value = lerp(current.motors[motorIndex], next.motors[motorIndex], mixAmount);
       motors[motorIndex] = value;
+      const rpmDriver =
+        current.rpms?.[motorIndex] !== undefined && next.rpms?.[motorIndex] !== undefined
+          ? lerp(current.rpms[motorIndex], next.rpms[motorIndex], mixAmount)
+          : value;
+      pitchDrivers[motorIndex] = rpmDriver;
       avgMotor += value;
     }
 
@@ -911,17 +952,18 @@ function synthesizeClip(log, options) {
     previousAvg = avgMotor;
 
     const white = Math.random() * 2 - 1;
-    windState = windState * 0.964 + white * 0.036;
-    hissState = hissState * 0.7 + white * 0.3;
+    windSlow = windSlow * 0.992 + white * 0.008;
+    windFast = windFast * 0.72 + white * 0.28;
 
     let leftMotorMix = 0;
     let rightMotorMix = 0;
 
     for (let motorIndex = 0; motorIndex < motorCount; motorIndex += 1) {
       const motor = motors[motorIndex];
+      const pitchDriver = pitchDrivers[motorIndex];
       const frequency =
         preset.basePitch +
-        motor * preset.pitchRange +
+        pitchDriver * preset.pitchRange +
         gyro * preset.gyroPitch +
         spread * preset.spreadPitch;
 
@@ -958,10 +1000,11 @@ function synthesizeClip(log, options) {
     const resonanceAmount = options.resonance
       ? (spread * 0.9 + dynamic * 0.55 + gyro * 0.35) * preset.resonanceGain
       : 0;
-    const transient = hissState * dynamic * preset.transientGain;
+    const windTexture = windFast - windSlow;
+    const transient = windTexture * dynamic * preset.transientGain;
     const sub = Math.sin(subPhase) * avgMotor * preset.subGain;
     const resonance = Math.sin(resonancePhase) * resonanceAmount;
-    const wind = (white - windState) * windAmount + windState * windAmount * 0.35;
+    const wind = windTexture * windAmount * 0.72 + windSlow * windAmount * 0.16;
 
     let leftSample = leftMotorMix * preset.motorGain + wind + transient + resonance + sub;
     let rightSample =
