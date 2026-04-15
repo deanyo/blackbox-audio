@@ -21,6 +21,7 @@ It runs entirely in the browser. Users can load raw `.bbl` / `.bfl` files or CSV
   - `Custom`
 - Provides a custom mode with slider-based tuning
 - Includes a built-in voice browser with copy-to-custom workflow
+- Loads community-contributed presets from JSON files in the repository
 - Imports and exports custom presets as JSON
 - Supports short live-audio audition for custom preset tweaking
 - Supports optional DVR video preview with sync offset controls
@@ -52,6 +53,7 @@ Current implementation:
 - Generic simulator-inspired preset voices
 - Built-in voice browser with copy-to-custom flow
 - Live custom preset audio preview
+- Community preset loading and contribution path
 - Stick cam preview overlay
 - Sync nudges for manual alignment
 
@@ -64,6 +66,7 @@ Current limitations:
 ## Guides
 
 - [Blackbox Setup and Export Guide](./docs/BLACKBOX_SETUP_GUIDE.md)
+- [Preset Contribution Guide](./docs/PRESET_CONTRIBUTING.md)
 
 ## Running Locally
 

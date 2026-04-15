@@ -1,0 +1,22 @@
+{
+  "slug": "my-whoop-preset",
+  "name": "My Whoop Preset",
+  "author": "Your Name",
+  "flavor": "short one-line flavor",
+  "description": "A short note about what this preset is trying to sound like.",
+  "tags": ["whoop", "tight", "buzzy"],
+  "preset": {
+    "basePitch": 118,
+    "pitchRange": 300,
+    "gyroPitch": 92,
+    "spreadPitch": 118,
+    "harmonic2": 0.42,
+    "harmonic3": 0.18,
+    "motorGain": 0.45,
+    "windGain": 0.05,
+    "resonanceGain": 0.12,
+    "transientGain": 0.018,
+    "subGain": 0.02,
+    "spaceGain": 0
+  }
+}

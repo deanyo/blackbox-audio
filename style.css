@@ -334,11 +334,16 @@ code {
 
 .preset-browser {
   display: grid;
+  gap: 12px;
+}
+
+.preset-browser-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-.tuning-grid.custom-hidden .preset-browser {
+.tuning-grid.custom-hidden .preset-browser-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -388,6 +393,28 @@ code {
   color: #b8b0cc;
   font-size: 11px;
   line-height: 1.55;
+}
+
+.preset-section {
+  display: grid;
+  gap: 12px;
+}
+
+.preset-section + .preset-section {
+  margin-top: 16px;
+}
+
+.preset-section-title {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+}
+
+.preset-card-meta {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: lowercase;
 }
 
 .preset-tags,
@@ -585,6 +612,7 @@ video {
   .tuning-grid,
   .field-grid,
   .preset-browser,
+  .preset-browser-grid,
   .preset-grid {
     grid-template-columns: 1fr;
   }

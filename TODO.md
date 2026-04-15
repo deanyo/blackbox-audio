@@ -23,6 +23,10 @@ This file tracks planned work, dependencies, and known blockers.
   - delete presets
 - Expand the generic simulator-inspired preset pack
   - tune by ear against common FPV sims without using branded names or copied assets
+- Decide how community preset curation should work
+  - lightweight review only
+  - curated featured presets
+  - optional author links or provenance notes
 - Add per-log notes in the UI when multiple embedded flights are detected
 - Add clearer field detection diagnostics when logs are partially usable
 

@@ -5,6 +5,7 @@ const MAX_ANALYSIS_RATE = 600;
 const FADE_TIME_SECONDS = 0.02;
 const LIVE_PREVIEW_DURATION = 2.5;
 const LIVE_PREVIEW_DEBOUNCE_MS = 150;
+const PRESET_MANIFEST_PATH = "./presets/index.json";
 
 const BUILT_IN_MODES = [
   {
@@ -185,24 +186,14 @@ const BUILT_IN_MODES = [
   },
 ];
 
-const MODE_META = Object.fromEntries([
-  ...BUILT_IN_MODES.map((mode) => [mode.key, mode]),
-  [
-    "custom",
-    {
-      key: "custom",
-      label: "custom",
-      flavor: "user-tuned",
-      tags: ["editable", "import/export"],
-      description:
-        "custom lets you tune pitch, harmonics, gain, and modulation live, then import or export presets.",
-    },
-  ],
-]);
-const MODE_PRESETS = Object.fromEntries(BUILT_IN_MODES.map((mode) => [mode.key, mode.preset]));
-const MODE_DESCRIPTIONS = Object.fromEntries(
-  Object.values(MODE_META).map((mode) => [mode.key, mode.description]),
-);
+const CUSTOM_MODE_META = {
+  key: "custom",
+  label: "custom",
+  flavor: "user-tuned",
+  tags: ["editable", "import/export"],
+  description:
+    "custom lets you tune pitch, harmonics, gain, and modulation live, then import or export presets.",
+};
 
 const CUSTOM_PRESET_STORAGE_KEY = "blackbox-audio-custom-preset";
 const CUSTOM_PRESET_FIELDS = [
@@ -232,6 +223,7 @@ const elements = {
   loadDemo: document.getElementById("loadDemo"),
   clearLog: document.getElementById("clearLog"),
   soundMode: document.getElementById("soundMode"),
+  communityModeGroup: document.getElementById("communityModeGroup"),
   presetBrowser: document.getElementById("presetBrowser"),
   customPresetPanel: document.getElementById("customPresetPanel"),
   customPresetFields: document.getElementById("customPresetFields"),
@@ -265,6 +257,7 @@ const elements = {
 const state = {
   log: null,
   rawBundle: null,
+  communityModes: [],
   customPreset: loadStoredCustomPreset(),
   render: null,
   audioUrl: null,
@@ -276,8 +269,10 @@ const state = {
 };
 
 initializePresetBrowser();
+syncCommunityModeOptions();
 initializeCustomPresetUi();
 updateModeUi();
+loadCommunityPresets();
 
 elements.soundMode.addEventListener("change", () => {
   updateModeUi();
@@ -312,7 +307,7 @@ elements.importPresetButton.addEventListener("click", () => {
 });
 
 elements.resetPresetButton.addEventListener("click", () => {
-  setCustomPreset(clonePreset(MODE_PRESETS.realistic));
+  setCustomPreset(clonePreset(getModePreset("realistic")));
   elements.soundMode.value = "custom";
   updateModeUi();
   setStatus("custom preset reset to realistic base.");
@@ -348,7 +343,8 @@ elements.presetBrowser.addEventListener("click", (event) => {
 
   const mode = button.dataset.mode;
   const action = button.dataset.action;
-  if (!MODE_PRESETS[mode]) {
+  const selectedPreset = getModePreset(mode);
+  if (!selectedPreset) {
     return;
   }
 
@@ -360,7 +356,7 @@ elements.presetBrowser.addEventListener("click", (event) => {
   }
 
   if (action === "copy") {
-    setCustomPreset(clonePreset(MODE_PRESETS[mode]));
+    setCustomPreset(clonePreset(selectedPreset));
     elements.soundMode.value = "custom";
     updateModeUi();
     setStatus(`copied ${getModeLabel(mode)} into custom.`);
@@ -474,7 +470,7 @@ elements.renderButton.addEventListener("click", async () => {
 
     attachRender(render);
     setStatus(
-      `rendered ${clipDuration.toFixed(1)}s in ${elements.soundMode.selectedOptions[0].textContent}.`,
+      `rendered ${clipDuration.toFixed(1)}s in ${getModeLabel(elements.soundMode.value)}.`,
     );
   } catch (error) {
     setStatus(error.message);
@@ -562,24 +558,102 @@ function loadLog(log) {
 }
 
 function initializePresetBrowser() {
-  elements.presetBrowser.innerHTML = BUILT_IN_MODES.map(
-    (mode) => `
+  const builtInModes = BUILT_IN_MODES;
+  const communityModes = state.communityModes;
+  const sections = [
+    renderPresetSection("built-in voices", builtInModes),
+    communityModes.length ? renderPresetSection("community contributions", communityModes) : "",
+  ].filter(Boolean);
+  elements.presetBrowser.innerHTML = sections.join("");
+}
+
+function renderPresetSection(title, modes) {
+  return `
+    <section class="preset-section">
+      <div class="preset-section-title">${escapeHtml(title)}</div>
+      <div class="preset-browser-grid">
+        ${modes.map((mode) => renderPresetCard(mode)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderPresetCard(mode) {
+  const tags = Array.isArray(mode.tags) ? mode.tags : [];
+  const sourceLabel = mode.sourceType === "community"
+    ? `community preset by ${mode.author || "unknown author"}`
+    : "built-in voice";
+
+  return `
       <article class="preset-card" data-mode-card="${mode.key}">
         <div class="preset-card-head">
           <div class="preset-card-title">${escapeHtml(mode.label)}</div>
           <div class="preset-card-flavor">${escapeHtml(mode.flavor)}</div>
         </div>
+        <div class="preset-card-meta">${escapeHtml(sourceLabel)}</div>
         <div class="preset-card-copy">${escapeHtml(mode.description)}</div>
         <div class="preset-tags">
-          ${mode.tags.map((tag) => `<span class="preset-tag">${escapeHtml(tag)}</span>`).join("")}
+          ${tags.map((tag) => `<span class="preset-tag">${escapeHtml(tag)}</span>`).join("")}
         </div>
         <div class="preset-card-actions">
           <button type="button" class="secondary-btn" data-action="select" data-mode="${mode.key}">use voice</button>
           <button type="button" class="ghost-btn" data-action="copy" data-mode="${mode.key}">copy to custom</button>
         </div>
       </article>
-    `,
-  ).join("");
+    `;
+}
+
+function syncCommunityModeOptions() {
+  elements.communityModeGroup.innerHTML = state.communityModes
+    .map(
+      (mode) =>
+        `<option value="${escapeHtml(mode.key)}">${escapeHtml(mode.label)} · ${escapeHtml(mode.author || "community")}</option>`,
+    )
+    .join("");
+  elements.communityModeGroup.disabled = state.communityModes.length === 0;
+}
+
+async function loadCommunityPresets() {
+  if (typeof fetch !== "function") {
+    return;
+  }
+
+  try {
+    const manifestResponse = await fetch(PRESET_MANIFEST_PATH);
+    if (!manifestResponse.ok) {
+      return;
+    }
+
+    const manifest = await manifestResponse.json();
+    const entries = Array.isArray(manifest.community) ? manifest.community : [];
+    const presets = [];
+    const seenKeys = new Set(BUILT_IN_MODES.map((mode) => mode.key));
+
+    for (const entry of entries) {
+      try {
+        const response = await fetch(entry);
+        if (!response.ok) {
+          continue;
+        }
+
+        const presetFile = await response.json();
+        const normalized = normalizeCommunityPreset(presetFile, entry);
+        if (normalized && !seenKeys.has(normalized.key)) {
+          seenKeys.add(normalized.key);
+          presets.push(normalized);
+        }
+      } catch (_error) {
+        // Ignore malformed community preset entries.
+      }
+    }
+
+    state.communityModes = presets;
+    syncCommunityModeOptions();
+    initializePresetBrowser();
+    updateModeUi();
+  } catch (_error) {
+    // Ignore community preset loading failures.
+  }
 }
 
 function initializeCustomPresetUi() {
@@ -621,7 +695,7 @@ function updateModeUi() {
   if (elements.soundMode.value !== "custom") {
     cancelLivePreview();
   }
-  elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.value];
+  elements.modeDescription.textContent = getModeDescription(elements.soundMode.value);
   elements.customPresetPanel.classList.toggle("hidden", !customVisible);
   elements.tuningGrid.classList.toggle("custom-hidden", !customVisible);
   syncPresetBrowser();
@@ -1093,12 +1167,32 @@ function setStatus(message) {
   elements.statusStrip.textContent = message;
 }
 
+function getAllModes() {
+  return [...BUILT_IN_MODES, ...state.communityModes];
+}
+
+function getModeMeta(mode) {
+  if (mode === "custom") {
+    return CUSTOM_MODE_META;
+  }
+
+  return getAllModes().find((candidate) => candidate.key === mode) ?? null;
+}
+
 function getPresetForMode(mode) {
-  return mode === "custom" ? state.customPreset : MODE_PRESETS[mode];
+  return mode === "custom" ? state.customPreset : getModeMeta(mode)?.preset;
 }
 
 function getModeLabel(mode) {
-  return MODE_META[mode]?.label ?? mode;
+  return getModeMeta(mode)?.label ?? mode;
+}
+
+function getModeDescription(mode) {
+  return getModeMeta(mode)?.description ?? CUSTOM_MODE_META.description;
+}
+
+function getDefaultPreset() {
+  return BUILT_IN_MODES.find((mode) => mode.key === "realistic")?.preset ?? {};
 }
 
 function clonePreset(preset) {
@@ -1116,7 +1210,7 @@ function sanitizePreset(candidate) {
 }
 
 function loadStoredCustomPreset() {
-  const fallback = clonePreset(MODE_PRESETS.realistic);
+  const fallback = clonePreset(getDefaultPreset());
   try {
     if (!globalThis.localStorage) {
       return fallback;
@@ -1160,6 +1254,41 @@ function exportCustomPreset() {
   anchor.download = "blackbox-audio-preset.json";
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function normalizeCommunityPreset(candidate, path) {
+  const keySource = candidate?.slug || candidate?.name || path;
+  const key = slugifyPresetKey(keySource);
+  if (!key || getModeMeta(key) || key === "custom") {
+    return null;
+  }
+
+  const label = `${candidate?.name || key}`.trim();
+  const flavor = `${candidate?.flavor || "community contribution"}`.trim();
+  const description = `${candidate?.description || "community-contributed preset."}`.trim();
+  const author = `${candidate?.author || ""}`.trim();
+  const tags = Array.isArray(candidate?.tags)
+    ? candidate.tags.map((tag) => `${tag}`.trim()).filter(Boolean).slice(0, 6)
+    : [];
+
+  return {
+    key,
+    label,
+    flavor,
+    description,
+    author,
+    tags,
+    sourceType: "community",
+    preset: sanitizePreset(candidate?.preset ?? candidate),
+  };
+}
+
+function slugifyPresetKey(value) {
+  return `${value}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
 }
 
 function escapeHtml(value) {
