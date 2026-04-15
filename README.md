@@ -1,79 +1,95 @@
-# blackbox audio
+# Blackbox Audio
 
-static browser prototype for turning betaflight blackbox logs into a synthesized motor audio track for dvr footage.
+Blackbox Audio is a static web app for generating synthetic tinywhoop audio from Betaflight blackbox logs and lining it up against DVR footage.
 
-## why this is viable
+It runs entirely in the browser. Users can load raw `.bbl` / `.bfl` files or CSV exports, preview the generated sound, overlay virtual stick cams on video, and export a WAV track for editing.
 
-betaflight blackbox logs already include the pieces that matter most for a plausible sound proxy:
+## What It Does
+
+- Loads raw Betaflight blackbox logs in the browser
+- Also supports CSV exports
+- Detects motor, throttle, gyro, stick, and RPM/eRPM fields when available
+- Synthesizes audio using built-in modes:
+  - `Realistic Tinywhoop`
+  - `Cinematic Chase`
+  - `Space Ship`
+  - `Custom`
+- Provides a custom mode with slider-based tuning
+- Imports and exports custom presets as JSON
+- Supports optional DVR video preview with sync offset controls
+- Shows a virtual stick overlay when the required stick data is present
+- Handles raw blackbox files that contain multiple embedded flights
+- Exports the generated audio as WAV
+
+## How It Works
+
+Betaflight blackbox logs contain the signals that matter most for a plausible synthetic motor track:
 
 - time
-- command being sent to each motor ESC
+- motor command history
 - RC command positions
 - gyro data
+- sometimes RPM/eRPM telemetry
 
-betaflight documents that blackbox records motor commands, rc commands, and gyro data on flight-control iterations, and that `blackbox_decode` can turn logs into csv for analysis:
+That is enough to infer pitch movement, loudness, imbalance, and some aggressive-flight texture. It is not enough to recover a true recording of microphone placement, room reflections, frame acoustics, or exact wind behavior, so the output should be treated as a stylized reconstruction rather than authentic recorded sound.
 
-- https://www.betaflight.com/docs/development/Blackbox
-- https://www.betaflight.com/docs/development/Blackbox-Internals
+When RPM or eRPM fields are present, the synth prefers them for pitch movement instead of relying only on motor command level.
 
-that means a browser app can infer:
+## Project Status
 
-- pitch contour from motor command level
-- loudness from average motor effort
-- roughness and frame buzz from gyro plus motor imbalance
-- wind-like broadband noise from throttle and aggressive motion
+Current implementation:
 
-it cannot recover true acoustic placement, room reflections, duct resonance, prop shape, or exact rpm unless richer telemetry is available, so this should be treated as a stylized reconstruction rather than authentic recorded audio.
+- Raw `.bbl` / `.bfl` support
+- Multi-flight selection for embedded logs
+- Preset import/export
+- Stick cam preview overlay
+- Sync nudges for manual alignment
 
-## current scope
+Current limitations:
 
-this prototype now supports raw `.bbl` / `.bfl` input as well as csv.
+- Wind is still experimental and is disabled by default
+- Video export is not implemented yet
+- The project still needs first-party real-world sample footage and matching logs for tuning
 
-- load raw blackbox logs in the browser
-- load blackbox csv in the browser
-- detect `time`, `motor[...]`, throttle, gyro, and rpm/eRPM columns heuristically
-- render one of three audio modes:
-  - `realistic tinywhoop`
-  - `cinematic chase`
-  - `space ship`
-  - `custom`
-- toggle wind noise and frame resonance
-- wind is currently experimental and is disabled by default
-- upload an optional dvr video and audition the rendered clip in sync
-- preview a virtual stick cam overlay when roll, pitch, yaw, and throttle fields are present
-- choose between multiple embedded logs when a raw blackbox file contains more than one flight
-- nudge video sync start quickly in the ui without typing offsets by hand
-- tune a custom preset with sliders and import/export it as json
-- download the synthesized audio as wav
+## Guides
 
-for direct raw-log support, this repo now vendors and adapts a minimal parser slice from betaflight blackbox explorer. because that upstream code is gpl-3.0, this project is now licensed under gpl-3.0 as well.
+- [Blackbox Setup and Export Guide](./docs/BLACKBOX_SETUP_GUIDE.md)
 
-when rpm or eRPM data is present, the synth now prefers that for pitch movement instead of relying only on motor command level.
+## Running Locally
 
-## deployment
-
-github pages is the right default for this version because the whole pipeline is client-side.
-
-serve the folder with any static server, for example:
+Serve the directory with any static file server:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-then open `http://localhost:8000`.
+Then open:
 
-if you do not have a log ready, click `load demo flight`.
+```text
+http://localhost:8000
+```
 
-cloudflare workers only become worth adding when one of these becomes real:
+If you do not have a log ready yet, use `Load Demo Flight`.
 
-- raw log helpers or decode assist for `.bbl`
-- shareable presets or rendered output urls
-- muxed video export via a queued job
-- analytics or saved projects without bolting them into the client
+## Deployment
 
-## best next steps
+GitHub Pages is the default deployment target because the current pipeline is fully client-side.
 
-1. prefer real rpm telemetry when present instead of estimating pitch from motor command.
-2. add a manual sync marker workflow using arming beep alignment against dvr audio.
-3. export muxed video+audio plus stick overlay, likely via ffmpeg.wasm if the static-site requirement holds.
-4. add first-party sample dvr + matching blackbox log for one-click testing.
+Cloudflare Workers would only become useful if the project later adds server-backed capabilities such as:
+
+- raw log preprocessing helpers
+- shareable saved renders or presets
+- queued video export
+- analytics or stored projects
+
+## Licensing
+
+This project is licensed under GPL-3.0. See [LICENSE](./LICENSE).
+
+For direct raw-log support, the repository vendors and adapts a minimal parser slice from Betaflight Blackbox Explorer. See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+
+## References
+
+- Betaflight Blackbox documentation: https://www.betaflight.com/docs/development/Blackbox
+- Betaflight Blackbox internals: https://www.betaflight.com/docs/development/Blackbox-Internals
+- Oscar Liang Blackbox guide: https://oscarliang.com/blackbox/
