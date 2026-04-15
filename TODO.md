@@ -21,6 +21,8 @@ This file tracks planned work, dependencies, and known blockers.
   - save multiple local presets
   - duplicate presets
   - delete presets
+- Expand the generic simulator-inspired preset pack
+  - tune by ear against common FPV sims without using branded names or copied assets
 - Add per-log notes in the UI when multiple embedded flights are detected
 - Add clearer field detection diagnostics when logs are partially usable
 
@@ -29,6 +31,8 @@ This file tracks planned work, dependencies, and known blockers.
 - Prefer richer RPM handling when logs expose better telemetry fields
 - Add prop or build-oriented preset packs
   - examples: 65mm brushed, 65mm brushless, 75mm whoop
+- Compare generic preset families against FPV simulator audio styles
+  - examples: arcade, micro whoop, heavier cinematic, sci-fi
 - Explore fitting a custom preset from a real reference recording
   - Dependency: real audio/log pairs from the same quad
 - Reduce remaining synthetic artifacts in wind and resonance layers

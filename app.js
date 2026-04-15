@@ -8,6 +8,10 @@ const MODE_DESCRIPTIONS = {
     "realistic tinywhoop favors buzzy harmonics, lift-dependent wind, and subtle frame chatter.",
   cinematic:
     "cinematic chase leans heavier, smoother, and more dramatic, with extra sub body and reduced hiss.",
+  arcade:
+    "arcade sim is brighter and punchier, with cleaner motor bite and sharper spool response.",
+  micro:
+    "micro sim pushes a tighter, higher-pitched whoop voice with extra duct buzz and twitchy detail.",
   space:
     "space ship exaggerates modulation and resonance for a stylized sci-fi pass while still following the flight log.",
   custom:
@@ -57,6 +61,34 @@ const MODE_PRESETS = {
     resonanceGain: 0.16,
     transientGain: 0.014,
     subGain: 0.1,
+    spaceGain: 0,
+  },
+  arcade: {
+    basePitch: 104,
+    pitchRange: 342,
+    gyroPitch: 82,
+    spreadPitch: 102,
+    harmonic2: 0.62,
+    harmonic3: 0.17,
+    motorGain: 0.45,
+    windGain: 0.06,
+    resonanceGain: 0.08,
+    transientGain: 0.026,
+    subGain: 0.02,
+    spaceGain: 0.02,
+  },
+  micro: {
+    basePitch: 146,
+    pitchRange: 362,
+    gyroPitch: 116,
+    spreadPitch: 146,
+    harmonic2: 0.56,
+    harmonic3: 0.31,
+    motorGain: 0.41,
+    windGain: 0.05,
+    resonanceGain: 0.1,
+    transientGain: 0.022,
+    subGain: 0,
     spaceGain: 0,
   },
   space: {

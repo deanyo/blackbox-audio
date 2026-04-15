@@ -12,6 +12,8 @@ It runs entirely in the browser. Users can load raw `.bbl` / `.bfl` files or CSV
 - Synthesizes audio using built-in modes:
   - `Realistic Tinywhoop`
   - `Cinematic Chase`
+  - `Arcade Sim`
+  - `Micro Sim`
   - `Space Ship`
   - `Custom`
 - Provides a custom mode with slider-based tuning
@@ -42,6 +44,7 @@ Current implementation:
 - Raw `.bbl` / `.bfl` support
 - Multi-flight selection for embedded logs
 - Preset import/export
+- Generic simulator-inspired preset voices
 - Stick cam preview overlay
 - Sync nudges for manual alignment
 
