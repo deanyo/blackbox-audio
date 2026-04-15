@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Static browser tool for turning Betaflight blackbox logs into synthetic tinywhoop audio for DVR footage.">
+  <meta property="og:title" content="blackbox audio">
+  <meta property="og:description" content="Render believable tinywhoop sound from Betaflight blackbox CSV, sync it against DVR, and export WAV in the browser.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#13111a">
+  <title>blackbox audio</title>
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'><rect width='256' height='256' rx='40' fill='%2313111a'/><text x='128' y='154' text-anchor='middle' font-family='JetBrains%20Mono,monospace' font-size='92' font-weight='600' fill='%238ef3ef'>🚁</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <h1>blackbox audio</h1>
+      <p class="subtitle">synthetic tinywhoop sound from betaflight logs</p>
+      <nav class="nav-tabs">
+        <a href="#lab" class="nav-btn active">csv lab</a>
+        <a href="#preview" class="nav-btn">sync preview</a>
+        <a href="#notes" class="nav-btn">deployment notes</a>
+      </nav>
+      <div class="hero-tag">
+        <span class="dot"></span>
+        <span>static-first · github pages friendly · optional cloudflare later</span>
+      </div>
+    </header>
+
+    <section class="summary-grid">
+      <article class="summary-card">
+        <div class="summary-label">input</div>
+        <div class="summary-value" id="inputSummary">no log loaded</div>
+      </article>
+      <article class="summary-card">
+        <div class="summary-label">detected</div>
+        <div class="summary-value" id="fieldSummary">awaiting csv</div>
+      </article>
+      <article class="summary-card">
+        <div class="summary-label">render</div>
+        <div class="summary-value" id="renderSummary">not rendered</div>
+      </article>
+    </section>
+
+    <section class="info-banner">
+      the useful bit is already in the log: motor command contour, throttle, and gyro. this version turns that into a plausible soundtrack rather than pretending to reconstruct a real microphone recording.
+    </section>
+
+    <section class="main-grid" id="lab">
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>inputs</h2>
+            <p>csv first. optional dvr video for sync preview.</p>
+          </div>
+        </div>
+
+        <label class="upload-card">
+          <span class="upload-title">betaflight blackbox csv</span>
+          <span class="upload-copy">
+            best with <code>time</code>, <code>motor[0..3]</code>, <code>rcCommand[3]</code>, and <code>gyroADC[0..2]</code> or equivalent exported columns.
+          </span>
+          <input id="csvFile" type="file" accept=".csv,text/csv">
+        </label>
+
+        <div class="action-row">
+          <button id="loadDemo" class="primary-btn">load demo flight</button>
+          <button id="clearLog" class="ghost-btn">clear</button>
+        </div>
+
+        <label class="field">
+          <span>optional dvr video</span>
+          <input id="videoFile" type="file" accept="video/*">
+        </label>
+
+        <div class="mini-grid">
+          <article class="mini-card">
+            <div class="mini-title">current scope</div>
+            <p>browser-only csv workflow. raw <code>.bbl</code> parsing should be the next pass.</p>
+          </article>
+          <article class="mini-card">
+            <div class="mini-title">why this works</div>
+            <p>motor output level gives pitch and energy. gyro adds frame buzz and propwash drama.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>synthesis</h2>
+            <p>pick the voice, clip window, and turbulence model.</p>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>sound mode</span>
+            <select id="soundMode">
+              <option value="realistic">realistic tinywhoop</option>
+              <option value="cinematic">cinematic chase</option>
+              <option value="space">space ship</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>clip start (s)</span>
+            <input id="clipStart" type="number" min="0" step="0.1" value="0">
+          </label>
+
+          <label class="field">
+            <span>clip duration (s)</span>
+            <input id="clipDuration" type="number" min="0.5" step="0.1" value="12">
+          </label>
+
+          <label class="field">
+            <span>video sync start (s)</span>
+            <input id="videoStart" type="number" min="0" step="0.1" value="0">
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-pill">
+            <input id="windToggle" type="checkbox" checked>
+            <span>wind noise</span>
+          </label>
+          <label class="toggle-pill">
+            <input id="resonanceToggle" type="checkbox" checked>
+            <span>frame resonance</span>
+          </label>
+        </div>
+
+        <div class="mode-copy" id="modeDescription">
+          realistic tinywhoop favors buzzy harmonics, lift-dependent wind, and subtle frame chatter.
+        </div>
+
+        <div class="action-row">
+          <button id="renderButton" class="primary-btn">render wav</button>
+          <button id="playButton" class="secondary-btn">play synced clip</button>
+          <button id="pauseButton" class="ghost-btn">pause</button>
+          <button id="stopButton" class="ghost-btn">stop</button>
+        </div>
+
+        <a id="downloadLink" class="download-link hidden" download="blackbox-synth.wav">download synthesized wav</a>
+      </section>
+    </section>
+
+    <section class="main-grid" id="preview">
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>audio preview</h2>
+            <p>rendered locally in the browser, no upload needed.</p>
+          </div>
+        </div>
+        <audio id="audioPlayer" controls preload="none"></audio>
+        <div class="status-panel" id="statusStrip">load a csv or the demo flight to begin.</div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>dvr sync</h2>
+            <p>set the video start field to align the rendered clip with footage.</p>
+          </div>
+        </div>
+        <video id="videoPreview" controls playsinline preload="metadata"></video>
+      </section>
+    </section>
+
+    <section class="notes-grid" id="notes">
+      <article class="card">
+        <div class="section-head">
+          <div>
+            <h2>what maps well</h2>
+            <p>the strong part of the idea.</p>
+          </div>
+        </div>
+        <p class="body-copy">
+          motor command history gives pitch contour, rough loudness, rapid spool changes, and imbalance between motors. that is enough to fake convincing whoop behaviour, especially once you add a turbulence layer and a bit of frame buzz.
+        </p>
+      </article>
+
+      <article class="card">
+        <div class="section-head">
+          <div>
+            <h2>what stays approximate</h2>
+            <p>where the model stops being truth.</p>
+          </div>
+        </div>
+        <p class="body-copy">
+          the log does not contain actual mic position, room reflections, camera mount resonance, prop geometry, or true acoustic wind. if rpm telemetry is missing, pitch is estimated from motor command rather than measured rotor speed.
+        </p>
+      </article>
+
+      <article class="card">
+        <div class="section-head">
+          <div>
+            <h2>deployment path</h2>
+            <p>keep it simple first.</p>
+          </div>
+        </div>
+        <p class="body-copy">
+          github pages is enough for this current browser-only build. a cloudflare worker only becomes useful if you want raw log decoding helpers, muxed video export jobs, saved presets, or a shareable render api.
+        </p>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <a href="https://github.com/deanyo/blackbox-audio" target="_blank" rel="noreferrer">src</a>
+    </footer>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
