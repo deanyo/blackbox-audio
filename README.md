@@ -37,6 +37,7 @@ this prototype intentionally starts with csv input instead of raw `.bbl`/`.bfl` 
   - `space ship`
 - toggle wind noise and frame resonance
 - upload an optional dvr video and audition the rendered clip in sync
+- preview a virtual stick cam overlay when roll, pitch, yaw, and throttle fields are present
 - download the synthesized audio as wav
 
 ## deployment
@@ -62,7 +63,7 @@ cloudflare workers only become worth adding when one of these becomes real:
 
 ## best next steps
 
-1. add raw betaflight log decoding in-browser so users can drop `.bbl` files directly.
+1. decide whether the repo is willing to adopt a gpl-compatible path for direct `.bbl` support by reusing/adapting betaflight blackbox explorer parser code.
 2. prefer real rpm telemetry when present instead of estimating pitch from motor command.
 3. add a manual sync marker workflow using arming beep alignment against dvr audio.
-4. export muxed video+audio, likely via ffmpeg.wasm if the static-site requirement holds.
+4. export muxed video+audio plus stick overlay, likely via ffmpeg.wasm if the static-site requirement holds.

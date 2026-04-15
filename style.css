@@ -282,6 +282,12 @@ body::before {
   display: block;
 }
 
+.standalone-toggle {
+  width: 100%;
+  justify-content: flex-start;
+  margin-top: 14px;
+}
+
 .field span {
   display: block;
   color: var(--muted);
@@ -424,6 +430,19 @@ video {
 video {
   border: 1px solid var(--line);
   aspect-ratio: 16 / 9;
+}
+
+.video-stage {
+  position: relative;
+}
+
+.stick-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  border-radius: 12px;
 }
 
 .status-panel {

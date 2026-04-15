@@ -60,6 +60,7 @@ const PAN_POSITIONS = [-0.65, 0.65, 0.38, -0.38, 0.22, -0.22, 0.12, -0.12];
 const elements = {
   csvFile: document.getElementById("csvFile"),
   videoFile: document.getElementById("videoFile"),
+  stickOverlayToggle: document.getElementById("stickOverlayToggle"),
   loadDemo: document.getElementById("loadDemo"),
   clearLog: document.getElementById("clearLog"),
   soundMode: document.getElementById("soundMode"),
@@ -74,6 +75,7 @@ const elements = {
   stopButton: document.getElementById("stopButton"),
   audioPlayer: document.getElementById("audioPlayer"),
   videoPreview: document.getElementById("videoPreview"),
+  stickOverlayCanvas: document.getElementById("stickOverlayCanvas"),
   downloadLink: document.getElementById("downloadLink"),
   statusStrip: document.getElementById("statusStrip"),
   inputSummary: document.getElementById("inputSummary"),
@@ -94,6 +96,18 @@ elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.valu
 
 elements.soundMode.addEventListener("change", () => {
   elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.value];
+});
+
+elements.clipStart.addEventListener("input", () => {
+  refreshStickOverlay();
+});
+
+elements.videoStart.addEventListener("input", () => {
+  refreshStickOverlay();
+});
+
+elements.stickOverlayToggle.addEventListener("change", () => {
+  refreshStickOverlay();
 });
 
 elements.csvFile.addEventListener("change", async (event) => {
@@ -139,11 +153,12 @@ elements.clearLog.addEventListener("click", () => {
   clearRender();
   state.log = null;
   elements.csvFile.value = "";
-  elements.inputSummary.textContent = "No log loaded";
+  elements.inputSummary.textContent = "no log loaded";
   elements.fieldSummary.textContent = "awaiting csv";
   elements.renderSummary.textContent = "not rendered";
   elements.clipStart.value = "0";
   elements.clipDuration.value = "12";
+  refreshStickOverlay();
   setStatus("cleared log data.");
 });
 
@@ -233,6 +248,22 @@ elements.videoPreview.addEventListener("pause", () => {
   stopSyncLoop();
 });
 
+elements.videoPreview.addEventListener("play", () => {
+  startSyncLoop();
+});
+
+elements.videoPreview.addEventListener("loadedmetadata", () => {
+  refreshStickOverlay();
+});
+
+elements.videoPreview.addEventListener("seeked", () => {
+  refreshStickOverlay();
+});
+
+elements.videoPreview.addEventListener("timeupdate", () => {
+  refreshStickOverlay();
+});
+
 function loadLog(log) {
   clearRender();
   state.log = log;
@@ -241,10 +272,12 @@ function loadLog(log) {
     `${log.motorCount} motors`,
     log.fieldSummary.throttle,
     log.fieldSummary.gyro,
+    log.fieldSummary.sticks,
   ].join(" · ");
   elements.renderSummary.textContent = "not rendered";
   elements.clipStart.value = "0";
   elements.clipDuration.value = Math.min(15, log.duration).toFixed(1);
+  refreshStickOverlay();
 }
 
 function clearVideo() {
@@ -255,6 +288,7 @@ function clearVideo() {
   elements.videoPreview.pause();
   elements.videoPreview.removeAttribute("src");
   elements.videoPreview.load();
+  refreshStickOverlay();
 }
 
 function clearRender() {
@@ -293,22 +327,23 @@ function stopPlayback() {
   if (elements.videoPreview.src) {
     elements.videoPreview.currentTime = clampNumber(Number(elements.videoStart.value), 0, 1e9);
   }
+  refreshStickOverlay();
 }
 
 function startSyncLoop() {
   stopSyncLoop();
 
   const sync = () => {
-    if (elements.audioPlayer.paused || elements.videoPreview.paused) {
+    if (elements.videoPreview.paused) {
       state.syncRaf = null;
+      refreshStickOverlay();
       return;
     }
 
-    const targetAudioTime =
-      elements.videoPreview.currentTime - clampNumber(Number(elements.videoStart.value), 0, 1e9);
+    const targetAudioTime = getAudioTimeForCurrentVideo();
     const drift = targetAudioTime - elements.audioPlayer.currentTime;
 
-    if (targetAudioTime >= 0 && Math.abs(drift) > 0.08) {
+    if (!elements.audioPlayer.paused && targetAudioTime >= 0 && Math.abs(drift) > 0.08) {
       elements.audioPlayer.currentTime = clampNumber(
         targetAudioTime,
         0,
@@ -316,7 +351,10 @@ function startSyncLoop() {
       );
     }
 
-    if (targetAudioTime >= (elements.audioPlayer.duration || Number.MAX_SAFE_INTEGER)) {
+    refreshStickOverlay();
+
+    if (!elements.audioPlayer.paused &&
+      targetAudioTime >= (elements.audioPlayer.duration || Number.MAX_SAFE_INTEGER)) {
       stopPlayback();
       return;
     }
@@ -332,6 +370,165 @@ function stopSyncLoop() {
     window.cancelAnimationFrame(state.syncRaf);
     state.syncRaf = null;
   }
+}
+
+function getAudioTimeForCurrentVideo() {
+  return elements.videoPreview.currentTime - clampNumber(Number(elements.videoStart.value), 0, 1e9);
+}
+
+function getPreviewLogTime() {
+  return clampNumber(Number(elements.clipStart.value), 0, 1e9) + getAudioTimeForCurrentVideo();
+}
+
+function refreshStickOverlay() {
+  const canvas = elements.stickOverlayCanvas;
+  if (!canvas) {
+    return;
+  }
+
+  if (
+    !elements.stickOverlayToggle.checked ||
+    !elements.videoPreview.src ||
+    !state.log ||
+    !state.log.sticksAvailable
+  ) {
+    clearStickOverlay();
+    return;
+  }
+
+  const rect = elements.videoPreview.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    clearStickOverlay();
+    return;
+  }
+
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.round(rect.width);
+  const height = Math.round(rect.height);
+
+  if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const logTime = getPreviewLogTime();
+  if (logTime < 0 || logTime > state.log.duration) {
+    return;
+  }
+
+  const sticks = sampleStickState(state.log.frames, logTime);
+  if (!sticks) {
+    return;
+  }
+
+  drawStickOverlay(ctx, width, height, sticks);
+}
+
+function clearStickOverlay() {
+  const canvas = elements.stickOverlayCanvas;
+  if (!canvas) {
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function sampleStickState(frames, time) {
+  if (!frames.length) {
+    return null;
+  }
+
+  const frameIndex = findFrameIndex(frames, time);
+  const current = frames[frameIndex];
+  const next = frames[Math.min(frameIndex + 1, frames.length - 1)];
+  const span = Math.max(0.000001, next.time - current.time);
+  const amount = clampNumber((time - current.time) / span, 0, 1);
+
+  if (!current.sticks && !next.sticks) {
+    return null;
+  }
+
+  const start = current.sticks || next.sticks;
+  const end = next.sticks || current.sticks;
+
+  return {
+    roll: lerp(start.roll, end.roll, amount),
+    pitch: lerp(start.pitch, end.pitch, amount),
+    yaw: lerp(start.yaw, end.yaw, amount),
+    throttle: lerp(start.throttle, end.throttle, amount),
+  };
+}
+
+function drawStickOverlay(ctx, width, height, sticks) {
+  const pad = Math.max(14, width * 0.025);
+  const panelSize = Math.max(92, Math.min(width, height) * 0.22);
+  const radius = panelSize * 0.5;
+  const leftX = pad + radius;
+  const rightX = pad + panelSize + pad * 0.7 + radius;
+  const centerY = height - pad - radius;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(19, 17, 26, 0.42)";
+  ctx.strokeStyle = "rgba(142, 243, 239, 0.24)";
+  ctx.lineWidth = 1.2;
+  drawStickBox(ctx, leftX, centerY, panelSize);
+  drawStickBox(ctx, rightX, centerY, panelSize);
+
+  ctx.fillStyle = "rgba(242, 240, 251, 0.8)";
+  ctx.font = `${Math.round(panelSize * 0.12)}px JetBrains Mono, monospace`;
+  ctx.textAlign = "center";
+  ctx.fillText("yaw / thr", leftX, centerY + radius + panelSize * 0.14);
+  ctx.fillText("roll / pitch", rightX, centerY + radius + panelSize * 0.14);
+
+  drawStickDot(ctx, leftX, centerY, radius * 0.82, sticks.yaw, -sticks.throttle * 2 + 1);
+  drawStickDot(ctx, rightX, centerY, radius * 0.82, sticks.roll, -sticks.pitch);
+  ctx.restore();
+}
+
+function drawStickBox(ctx, centerX, centerY, size) {
+  const half = size / 2;
+  ctx.beginPath();
+  ctx.roundRect(centerX - half, centerY - half, size, size, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.strokeStyle = "rgba(242, 240, 251, 0.18)";
+  ctx.moveTo(centerX - half, centerY);
+  ctx.lineTo(centerX + half, centerY);
+  ctx.moveTo(centerX, centerY - half);
+  ctx.lineTo(centerX, centerY + half);
+  ctx.stroke();
+}
+
+function drawStickDot(ctx, centerX, centerY, radius, xNorm, yNorm) {
+  const clampedX = clampNumber(xNorm, -1, 1);
+  const clampedY = clampNumber(yNorm, -1, 1);
+  const dotX = centerX + clampedX * radius;
+  const dotY = centerY + clampedY * radius;
+
+  ctx.beginPath();
+  ctx.fillStyle = "rgba(128, 199, 255, 0.14)";
+  ctx.arc(dotX, dotY, radius * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.fillStyle = "#8ef3ef";
+  ctx.arc(dotX, dotY, radius * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.strokeStyle = "rgba(142, 243, 239, 0.45)";
+  ctx.lineWidth = 1;
+  ctx.arc(dotX, dotY, radius * 0.22, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 function setStatus(message) {
@@ -361,6 +558,8 @@ function parseBlackboxCsv(text, sourceName) {
   let motorMax = Number.NEGATIVE_INFINITY;
   let throttleMin = Number.POSITIVE_INFINITY;
   let throttleMax = Number.NEGATIVE_INFINITY;
+  const stickMins = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+  const stickMaxs = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
 
   for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex];
@@ -381,6 +580,8 @@ function parseBlackboxCsv(text, sourceName) {
 
     const gyro = mapping.gyroIndices.map((index) => Number(row[index]));
     const usableGyro = gyro.every((value) => Number.isFinite(value)) ? gyro : [];
+    const stickAxes = mapping.stickIndices.map((index) => Number(row[index]));
+    const usableStickAxes = stickAxes.every((value) => Number.isFinite(value)) ? stickAxes : [];
 
     for (const motor of motors) {
       motorMin = Math.min(motorMin, motor);
@@ -392,7 +593,14 @@ function parseBlackboxCsv(text, sourceName) {
       throttleMax = Math.max(throttleMax, throttle);
     }
 
-    rawFrames.push({ time, motors, throttle, gyro: usableGyro });
+    if (usableStickAxes.length === 3) {
+      for (let axis = 0; axis < 3; axis += 1) {
+        stickMins[axis] = Math.min(stickMins[axis], usableStickAxes[axis]);
+        stickMaxs[axis] = Math.max(stickMaxs[axis], usableStickAxes[axis]);
+      }
+    }
+
+    rawFrames.push({ time, motors, throttle, gyro: usableGyro, stickAxes: usableStickAxes });
   }
 
   if (rawFrames.length < 4) {
@@ -406,6 +614,8 @@ function parseBlackboxCsv(text, sourceName) {
   const hasThrottle = mapping.throttleIndex !== -1 && Number.isFinite(throttleMax);
   const safeThrottleMin = hasThrottle ? throttleMin : 1000;
   const safeThrottleRange = hasThrottle ? Math.max(1, throttleMax - safeThrottleMin) : 1;
+  const hasStickAxes =
+    mapping.stickIndices.length === 3 && stickMaxs.every((value) => Number.isFinite(value));
 
   const frames = reducedFrames.map((frame) => {
     const motorNorms = frame.motors.map((motor) =>
@@ -429,6 +639,15 @@ function parseBlackboxCsv(text, sourceName) {
             1,
           )
         : 0;
+    const sticks =
+      frame.stickAxes.length === 3
+        ? {
+            roll: normalizeStickAxis(frame.stickAxes[0], stickMins[0], stickMaxs[0]),
+            pitch: normalizeStickAxis(frame.stickAxes[1], stickMins[1], stickMaxs[1]),
+            yaw: normalizeStickAxis(frame.stickAxes[2], stickMins[2], stickMaxs[2]),
+            throttle: throttleNorm,
+          }
+        : null;
 
     return {
       time: frame.time - reducedFrames[0].time,
@@ -436,6 +655,7 @@ function parseBlackboxCsv(text, sourceName) {
       avgMotor,
       throttle: throttleNorm,
       gyro: gyroNorm,
+      sticks,
     };
   });
 
@@ -446,9 +666,11 @@ function parseBlackboxCsv(text, sourceName) {
     frames,
     duration,
     motorCount: frames[0].motors.length,
+    sticksAvailable: frames.some((frame) => frame.sticks),
     fieldSummary: {
-      throttle: hasThrottle ? "Throttle detected" : "Throttle derived from motor average",
-      gyro: mapping.gyroIndices.length >= 3 ? "Gyro detected" : "Gyro missing",
+      throttle: hasThrottle ? "throttle detected" : "throttle derived from motor average",
+      gyro: mapping.gyroIndices.length >= 3 ? "gyro detected" : "gyro missing",
+      sticks: hasStickAxes ? "stick data detected" : "stick data missing",
     },
   };
 }
@@ -541,12 +763,21 @@ function detectColumns(headers) {
     .sort((left, right) => left.axis - right.axis)
     .slice(0, 3)
     .map((entry) => entry.index);
+  const stickIndices = [0, 1, 2]
+    .map((axis) =>
+      normalized.findIndex(
+        (header) =>
+          header.includes(`rccommand[${axis}]`) || header.includes(`setpoint[${axis}]`),
+      ),
+    )
+    .filter((index) => index !== -1);
 
   return {
     timeIndex,
     throttleIndex,
     motorIndices,
     gyroIndices,
+    stickIndices,
   };
 }
 
@@ -798,7 +1029,7 @@ function createPanArray(count) {
 
 function buildDemoCsv() {
   const lines = [
-    "time (us),motor[0],motor[1],motor[2],motor[3],rcCommand[3],gyroADC[0],gyroADC[1],gyroADC[2]",
+    "time (us),motor[0],motor[1],motor[2],motor[3],rcCommand[0],rcCommand[1],rcCommand[2],rcCommand[3],gyroADC[0],gyroADC[1],gyroADC[2]",
   ];
   const duration = 20;
   const rate = 500;
@@ -835,6 +1066,9 @@ function buildDemoCsv() {
       [
         Math.round(time * 1_000_000),
         ...motors.map((motor) => Math.round(1000 + motor * 900)),
+        Math.round(roll * 500),
+        Math.round(pitch * 500),
+        Math.round(yaw * 500),
         Math.round(1000 + throttle * 1000),
         Math.round(gyroX),
         Math.round(gyroY),
@@ -853,6 +1087,18 @@ function smoothPulse(time, center, width) {
   }
   const normalized = 1 - distance / width;
   return normalized * normalized * (3 - 2 * normalized);
+}
+
+function normalizeStickAxis(value, observedMin, observedMax) {
+  const rangeMin = Number.isFinite(observedMin) ? observedMin : -500;
+  const rangeMax = Number.isFinite(observedMax) ? observedMax : 500;
+
+  if (rangeMin >= 900 && rangeMax <= 2100) {
+    return clampNumber((value - 1500) / 500, -1, 1);
+  }
+
+  const maxAbs = Math.max(Math.abs(rangeMin), Math.abs(rangeMax), 1);
+  return clampNumber(value / maxAbs, -1, 1);
 }
 
 function clampNumber(value, min, max) {

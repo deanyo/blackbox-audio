@@ -77,10 +77,15 @@
           <input id="videoFile" type="file" accept="video/*">
         </label>
 
+        <label class="toggle-pill standalone-toggle">
+          <input id="stickOverlayToggle" type="checkbox" checked>
+          <span>show stick cam overlay in preview</span>
+        </label>
+
         <div class="mini-grid">
           <article class="mini-card">
             <div class="mini-title">current scope</div>
-            <p>browser-only csv workflow. raw <code>.bbl</code> parsing should be the next pass.</p>
+            <p>browser-only csv workflow. raw <code>.bbl</code> parsing is feasible, but the cleanest route reuses betaflight parser code and needs an explicit licensing decision.</p>
           </article>
           <article class="mini-card">
             <div class="mini-title">why this works</div>
@@ -165,10 +170,13 @@
         <div class="section-head">
           <div>
             <h2>dvr sync</h2>
-            <p>set the video start field to align the rendered clip with footage.</p>
+            <p>set the video start field to align the rendered clip with footage. stick cam is preview-only for now.</p>
           </div>
         </div>
-        <video id="videoPreview" controls playsinline preload="metadata"></video>
+        <div class="video-stage">
+          <video id="videoPreview" controls playsinline preload="metadata"></video>
+          <canvas id="stickOverlayCanvas" class="stick-overlay"></canvas>
+        </div>
       </section>
     </section>
 
