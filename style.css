@@ -325,6 +325,93 @@ code {
   background: rgba(44, 41, 64, 0.52);
 }
 
+.preset-browser-panel {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(44, 41, 64, 0.42);
+}
+
+.preset-browser {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.preset-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(128, 199, 255, 0.06), transparent 75%),
+    rgba(25, 22, 37, 0.82);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.preset-card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 10px 20px rgba(142, 243, 239, 0.12);
+}
+
+.preset-card:hover {
+  transform: translateY(-1px);
+}
+
+.preset-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.preset-card-title {
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--ink);
+  font-size: 18px;
+  text-transform: lowercase;
+}
+
+.preset-card-flavor {
+  color: var(--accent-3);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.preset-card-copy,
+.preset-note {
+  color: #b8b0cc;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.preset-tags,
+.preset-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preset-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 5px 9px;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: lowercase;
+  background: rgba(44, 41, 64, 0.78);
+}
+
+.preset-card-actions .ghost-btn,
+.preset-card-actions .secondary-btn {
+  padding: 9px 12px;
+  font-size: 12px;
+}
+
 .preset-actions {
   display: flex;
   flex-wrap: wrap;
@@ -426,6 +513,10 @@ code {
   background: var(--bg-3);
 }
 
+.preset-note {
+  margin: -4px 0 14px;
+}
+
 .download-link {
   display: inline-flex;
   align-items: center;
@@ -489,6 +580,7 @@ video {
   .summary-grid,
   .main-grid,
   .field-grid,
+  .preset-browser,
   .preset-grid {
     grid-template-columns: 1fr;
   }

@@ -14,10 +14,15 @@ It runs entirely in the browser. Users can load raw `.bbl` / `.bfl` files or CSV
   - `Cinematic Chase`
   - `Arcade Sim`
   - `Micro Sim`
+  - `Brushed Toy`
+  - `Clean Racer`
+  - `Heavy Duct`
   - `Space Ship`
   - `Custom`
 - Provides a custom mode with slider-based tuning
+- Includes a built-in voice browser with copy-to-custom workflow
 - Imports and exports custom presets as JSON
+- Supports short live-audio audition for custom preset tweaking
 - Supports optional DVR video preview with sync offset controls
 - Shows a virtual stick overlay when the required stick data is present
 - Handles raw blackbox files that contain multiple embedded flights
@@ -45,6 +50,8 @@ Current implementation:
 - Multi-flight selection for embedded logs
 - Preset import/export
 - Generic simulator-inspired preset voices
+- Built-in voice browser with copy-to-custom flow
+- Live custom preset audio preview
 - Stick cam preview overlay
 - Sync nudges for manual alignment
 

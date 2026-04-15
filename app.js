@@ -3,20 +3,206 @@ import { parseBlackboxBinaryLog } from "./vendor/betaflight/decoder-adapter.js";
 const SAMPLE_RATE = 24000;
 const MAX_ANALYSIS_RATE = 600;
 const FADE_TIME_SECONDS = 0.02;
-const MODE_DESCRIPTIONS = {
-  realistic:
-    "realistic tinywhoop favors buzzy harmonics, lift-dependent wind, and subtle frame chatter.",
-  cinematic:
-    "cinematic chase leans heavier, smoother, and more dramatic, with extra sub body and reduced hiss.",
-  arcade:
-    "arcade sim is brighter and punchier, with cleaner motor bite and sharper spool response.",
-  micro:
-    "micro sim pushes a tighter, higher-pitched whoop voice with extra duct buzz and twitchy detail.",
-  space:
-    "space ship exaggerates modulation and resonance for a stylized sci-fi pass while still following the flight log.",
-  custom:
-    "custom lets you tune pitch, harmonics, gain, and modulation live, then import or export presets.",
-};
+const LIVE_PREVIEW_DURATION = 2.5;
+const LIVE_PREVIEW_DEBOUNCE_MS = 150;
+
+const BUILT_IN_MODES = [
+  {
+    key: "realistic",
+    label: "realistic tinywhoop",
+    flavor: "baseline",
+    tags: ["balanced", "buzzy", "natural"],
+    description:
+      "realistic tinywhoop favors buzzy harmonics, lift-dependent wind, and subtle frame chatter.",
+    preset: {
+      basePitch: 115,
+      pitchRange: 290,
+      gyroPitch: 90,
+      spreadPitch: 120,
+      harmonic2: 0.42,
+      harmonic3: 0.18,
+      motorGain: 0.46,
+      windGain: 0.16,
+      resonanceGain: 0.11,
+      transientGain: 0.018,
+      subGain: 0,
+      spaceGain: 0,
+    },
+  },
+  {
+    key: "cinematic",
+    label: "cinematic chase",
+    flavor: "smooth and heavy",
+    tags: ["sub body", "smooth", "dramatic"],
+    description:
+      "cinematic chase leans heavier, smoother, and more dramatic, with extra sub body and reduced hiss.",
+    preset: {
+      basePitch: 90,
+      pitchRange: 235,
+      gyroPitch: 55,
+      spreadPitch: 85,
+      harmonic2: 0.5,
+      harmonic3: 0.24,
+      motorGain: 0.42,
+      windGain: 0.12,
+      resonanceGain: 0.16,
+      transientGain: 0.014,
+      subGain: 0.1,
+      spaceGain: 0,
+    },
+  },
+  {
+    key: "arcade",
+    label: "arcade sim",
+    flavor: "bright and punchy",
+    tags: ["snappy", "clean bite", "sim-style"],
+    description:
+      "arcade sim is brighter and punchier, with cleaner motor bite and sharper spool response.",
+    preset: {
+      basePitch: 104,
+      pitchRange: 342,
+      gyroPitch: 82,
+      spreadPitch: 102,
+      harmonic2: 0.62,
+      harmonic3: 0.17,
+      motorGain: 0.45,
+      windGain: 0.06,
+      resonanceGain: 0.08,
+      transientGain: 0.026,
+      subGain: 0.02,
+      spaceGain: 0.02,
+    },
+  },
+  {
+    key: "micro",
+    label: "micro sim",
+    flavor: "tight and twitchy",
+    tags: ["high pitch", "duct buzz", "twitchy"],
+    description:
+      "micro sim pushes a tighter, higher-pitched whoop voice with extra duct buzz and twitchy detail.",
+    preset: {
+      basePitch: 146,
+      pitchRange: 362,
+      gyroPitch: 116,
+      spreadPitch: 146,
+      harmonic2: 0.56,
+      harmonic3: 0.31,
+      motorGain: 0.41,
+      windGain: 0.05,
+      resonanceGain: 0.1,
+      transientGain: 0.022,
+      subGain: 0,
+      spaceGain: 0,
+    },
+  },
+  {
+    key: "brushed",
+    label: "brushed toy",
+    flavor: "old-school buzz",
+    tags: ["toy-grade", "raspy", "lightweight"],
+    description:
+      "brushed toy leans raspy and wiry, with more upper buzz and less low-end body.",
+    preset: {
+      basePitch: 162,
+      pitchRange: 286,
+      gyroPitch: 74,
+      spreadPitch: 138,
+      harmonic2: 0.68,
+      harmonic3: 0.33,
+      motorGain: 0.38,
+      windGain: 0.04,
+      resonanceGain: 0.13,
+      transientGain: 0.03,
+      subGain: 0,
+      spaceGain: 0,
+    },
+  },
+  {
+    key: "racer",
+    label: "clean racer",
+    flavor: "crisp and direct",
+    tags: ["clean", "focused", "fast"],
+    description:
+      "clean racer pulls resonance back and emphasizes direct motor tone for a more stripped, crisp voice.",
+    preset: {
+      basePitch: 98,
+      pitchRange: 368,
+      gyroPitch: 94,
+      spreadPitch: 76,
+      harmonic2: 0.44,
+      harmonic3: 0.12,
+      motorGain: 0.43,
+      windGain: 0.05,
+      resonanceGain: 0.05,
+      transientGain: 0.021,
+      subGain: 0.03,
+      spaceGain: 0,
+    },
+  },
+  {
+    key: "duct",
+    label: "heavy duct",
+    flavor: "resonant and thick",
+    tags: ["thick", "resonant", "cinematic"],
+    description:
+      "heavy duct exaggerates enclosure resonance and low-end weight for a chunkier whoop character.",
+    preset: {
+      basePitch: 88,
+      pitchRange: 248,
+      gyroPitch: 62,
+      spreadPitch: 126,
+      harmonic2: 0.55,
+      harmonic3: 0.22,
+      motorGain: 0.47,
+      windGain: 0.07,
+      resonanceGain: 0.2,
+      transientGain: 0.018,
+      subGain: 0.12,
+      spaceGain: 0.01,
+    },
+  },
+  {
+    key: "space",
+    label: "space ship",
+    flavor: "stylized sci-fi",
+    tags: ["sci-fi", "modulated", "stylized"],
+    description:
+      "space ship exaggerates modulation and resonance for a stylized sci-fi pass while still following the flight log.",
+    preset: {
+      basePitch: 125,
+      pitchRange: 320,
+      gyroPitch: 120,
+      spreadPitch: 165,
+      harmonic2: 0.58,
+      harmonic3: 0.28,
+      motorGain: 0.4,
+      windGain: 0.09,
+      resonanceGain: 0.09,
+      transientGain: 0.016,
+      subGain: 0.03,
+      spaceGain: 0.18,
+    },
+  },
+];
+
+const MODE_META = Object.fromEntries([
+  ...BUILT_IN_MODES.map((mode) => [mode.key, mode]),
+  [
+    "custom",
+    {
+      key: "custom",
+      label: "custom",
+      flavor: "user-tuned",
+      tags: ["editable", "import/export"],
+      description:
+        "custom lets you tune pitch, harmonics, gain, and modulation live, then import or export presets.",
+    },
+  ],
+]);
+const MODE_PRESETS = Object.fromEntries(BUILT_IN_MODES.map((mode) => [mode.key, mode.preset]));
+const MODE_DESCRIPTIONS = Object.fromEntries(
+  Object.values(MODE_META).map((mode) => [mode.key, mode.description]),
+);
 
 const CUSTOM_PRESET_STORAGE_KEY = "blackbox-audio-custom-preset";
 const CUSTOM_PRESET_FIELDS = [
@@ -34,79 +220,6 @@ const CUSTOM_PRESET_FIELDS = [
   { key: "spaceGain", label: "space modulation", min: 0, max: 0.3, step: 0.01 },
 ];
 
-const MODE_PRESETS = {
-  realistic: {
-    basePitch: 115,
-    pitchRange: 290,
-    gyroPitch: 90,
-    spreadPitch: 120,
-    harmonic2: 0.42,
-    harmonic3: 0.18,
-    motorGain: 0.46,
-    windGain: 0.16,
-    resonanceGain: 0.11,
-    transientGain: 0.018,
-    subGain: 0,
-    spaceGain: 0,
-  },
-  cinematic: {
-    basePitch: 90,
-    pitchRange: 235,
-    gyroPitch: 55,
-    spreadPitch: 85,
-    harmonic2: 0.5,
-    harmonic3: 0.24,
-    motorGain: 0.42,
-    windGain: 0.12,
-    resonanceGain: 0.16,
-    transientGain: 0.014,
-    subGain: 0.1,
-    spaceGain: 0,
-  },
-  arcade: {
-    basePitch: 104,
-    pitchRange: 342,
-    gyroPitch: 82,
-    spreadPitch: 102,
-    harmonic2: 0.62,
-    harmonic3: 0.17,
-    motorGain: 0.45,
-    windGain: 0.06,
-    resonanceGain: 0.08,
-    transientGain: 0.026,
-    subGain: 0.02,
-    spaceGain: 0.02,
-  },
-  micro: {
-    basePitch: 146,
-    pitchRange: 362,
-    gyroPitch: 116,
-    spreadPitch: 146,
-    harmonic2: 0.56,
-    harmonic3: 0.31,
-    motorGain: 0.41,
-    windGain: 0.05,
-    resonanceGain: 0.1,
-    transientGain: 0.022,
-    subGain: 0,
-    spaceGain: 0,
-  },
-  space: {
-    basePitch: 125,
-    pitchRange: 320,
-    gyroPitch: 120,
-    spreadPitch: 165,
-    harmonic2: 0.58,
-    harmonic3: 0.28,
-    motorGain: 0.4,
-    windGain: 0.09,
-    resonanceGain: 0.09,
-    transientGain: 0.016,
-    subGain: 0.03,
-    spaceGain: 0.18,
-  },
-};
-
 const PAN_POSITIONS = [-0.65, 0.65, 0.38, -0.38, 0.22, -0.22, 0.12, -0.12];
 
 const elements = {
@@ -118,8 +231,11 @@ const elements = {
   loadDemo: document.getElementById("loadDemo"),
   clearLog: document.getElementById("clearLog"),
   soundMode: document.getElementById("soundMode"),
+  presetBrowser: document.getElementById("presetBrowser"),
   customPresetPanel: document.getElementById("customPresetPanel"),
   customPresetFields: document.getElementById("customPresetFields"),
+  livePreviewToggle: document.getElementById("livePreviewToggle"),
+  previewPresetButton: document.getElementById("previewPresetButton"),
   exportPresetButton: document.getElementById("exportPresetButton"),
   importPresetButton: document.getElementById("importPresetButton"),
   resetPresetButton: document.getElementById("resetPresetButton"),
@@ -153,8 +269,12 @@ const state = {
   audioUrl: null,
   videoUrl: null,
   syncRaf: null,
+  livePreviewTimer: null,
+  previewAudioContext: null,
+  previewSource: null,
 };
 
+initializePresetBrowser();
 initializeCustomPresetUi();
 updateModeUi();
 
@@ -182,6 +302,10 @@ elements.exportPresetButton.addEventListener("click", () => {
   exportCustomPreset();
 });
 
+elements.previewPresetButton.addEventListener("click", () => {
+  previewCustomPresetAudio(true);
+});
+
 elements.importPresetButton.addEventListener("click", () => {
   elements.importPresetFile.click();
 });
@@ -191,6 +315,7 @@ elements.resetPresetButton.addEventListener("click", () => {
   elements.soundMode.value = "custom";
   updateModeUi();
   setStatus("custom preset reset to realistic base.");
+  scheduleLivePreview();
 });
 
 elements.importPresetFile.addEventListener("change", async (event) => {
@@ -206,10 +331,39 @@ elements.importPresetFile.addEventListener("change", async (event) => {
     elements.soundMode.value = "custom";
     updateModeUi();
     setStatus(`imported preset from ${file.name}.`);
+    scheduleLivePreview();
   } catch (_error) {
     setStatus("could not import preset json.");
   } finally {
     elements.importPresetFile.value = "";
+  }
+});
+
+elements.presetBrowser.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-mode]");
+  if (!button) {
+    return;
+  }
+
+  const mode = button.dataset.mode;
+  const action = button.dataset.action;
+  if (!MODE_PRESETS[mode]) {
+    return;
+  }
+
+  if (action === "select") {
+    elements.soundMode.value = mode;
+    updateModeUi();
+    setStatus(`${getModeLabel(mode)} selected.`);
+    return;
+  }
+
+  if (action === "copy") {
+    setCustomPreset(clonePreset(MODE_PRESETS[mode]));
+    elements.soundMode.value = "custom";
+    updateModeUi();
+    setStatus(`copied ${getModeLabel(mode)} into custom.`);
+    scheduleLivePreview();
   }
 });
 
@@ -332,6 +486,8 @@ elements.playButton.addEventListener("click", async () => {
     return;
   }
 
+  stopPreviewAudio();
+
   if (elements.videoPreview.src) {
     const videoStart = clampNumber(Number(elements.videoStart.value), 0, Number.MAX_SAFE_INTEGER);
     elements.videoPreview.currentTime = videoStart;
@@ -404,6 +560,27 @@ function loadLog(log) {
   refreshStickOverlay();
 }
 
+function initializePresetBrowser() {
+  elements.presetBrowser.innerHTML = BUILT_IN_MODES.map(
+    (mode) => `
+      <article class="preset-card" data-mode-card="${mode.key}">
+        <div class="preset-card-head">
+          <div class="preset-card-title">${escapeHtml(mode.label)}</div>
+          <div class="preset-card-flavor">${escapeHtml(mode.flavor)}</div>
+        </div>
+        <div class="preset-card-copy">${escapeHtml(mode.description)}</div>
+        <div class="preset-tags">
+          ${mode.tags.map((tag) => `<span class="preset-tag">${escapeHtml(tag)}</span>`).join("")}
+        </div>
+        <div class="preset-card-actions">
+          <button type="button" class="secondary-btn" data-action="select" data-mode="${mode.key}">use voice</button>
+          <button type="button" class="ghost-btn" data-action="copy" data-mode="${mode.key}">copy to custom</button>
+        </div>
+      </article>
+    `,
+  ).join("");
+}
+
 function initializeCustomPresetUi() {
   elements.customPresetFields.innerHTML = CUSTOM_PRESET_FIELDS.map(
     (field) => `
@@ -431,6 +608,7 @@ function initializeCustomPresetUi() {
         [slider.dataset.presetKey]: Number(slider.value),
       };
       setCustomPreset(nextPreset);
+      scheduleLivePreview();
     });
   }
 
@@ -438,9 +616,19 @@ function initializeCustomPresetUi() {
 }
 
 function updateModeUi() {
+  if (elements.soundMode.value !== "custom") {
+    cancelLivePreview();
+  }
   elements.modeDescription.textContent = MODE_DESCRIPTIONS[elements.soundMode.value];
   elements.customPresetPanel.classList.toggle("hidden", elements.soundMode.value !== "custom");
+  syncPresetBrowser();
   syncCustomPresetUi();
+}
+
+function syncPresetBrowser() {
+  for (const card of elements.presetBrowser.querySelectorAll("[data-mode-card]")) {
+    card.classList.toggle("is-active", card.dataset.modeCard === elements.soundMode.value);
+  }
 }
 
 function syncCustomPresetUi() {
@@ -510,6 +698,8 @@ function clearVideo() {
 }
 
 function clearRender() {
+  cancelLivePreview();
+  stopPreviewAudio();
   stopPlayback();
   if (state.audioUrl) {
     URL.revokeObjectURL(state.audioUrl);
@@ -539,6 +729,7 @@ function attachRender(render) {
 
 function stopPlayback() {
   stopSyncLoop();
+  stopPreviewAudio();
   elements.audioPlayer.pause();
   elements.audioPlayer.currentTime = 0;
   elements.videoPreview.pause();
@@ -546,6 +737,142 @@ function stopPlayback() {
     elements.videoPreview.currentTime = clampNumber(Number(elements.videoStart.value), 0, 1e9);
   }
   refreshStickOverlay();
+}
+
+function cancelLivePreview() {
+  if (!state.livePreviewTimer) {
+    return;
+  }
+
+  window.clearTimeout(state.livePreviewTimer);
+  state.livePreviewTimer = null;
+}
+
+function scheduleLivePreview() {
+  cancelLivePreview();
+
+  if (
+    !elements.livePreviewToggle.checked ||
+    elements.soundMode.value !== "custom" ||
+    !state.log
+  ) {
+    return;
+  }
+
+  state.livePreviewTimer = window.setTimeout(() => {
+    state.livePreviewTimer = null;
+    previewCustomPresetAudio(false);
+  }, LIVE_PREVIEW_DEBOUNCE_MS);
+}
+
+async function previewCustomPresetAudio(isManual) {
+  cancelLivePreview();
+
+  if (!state.log) {
+    setStatus("load a log first to preview the custom preset.");
+    return;
+  }
+
+  if (elements.soundMode.value !== "custom") {
+    elements.soundMode.value = "custom";
+    updateModeUi();
+  }
+
+  const clipStart = clampNumber(
+    Number(elements.clipStart.value),
+    0,
+    Math.max(0, state.log.duration - 0.1),
+  );
+  const clipDuration = clampNumber(
+    Number(elements.clipDuration.value),
+    0.5,
+    Math.max(0.5, state.log.duration - clipStart),
+  );
+  const previewDuration = Math.min(LIVE_PREVIEW_DURATION, clipDuration);
+  const preview = renderSynthData(state.log, {
+    start: clipStart,
+    duration: previewDuration,
+    mode: "custom",
+    wind: elements.windToggle.checked,
+    resonance: elements.resonanceToggle.checked,
+  });
+
+  const played = await playPreviewBuffer(preview.channels, preview.sampleRate);
+  if (!played) {
+    setStatus("live preview needs web audio support in this browser.");
+    return;
+  }
+
+  setStatus(
+    isManual
+      ? `previewing custom preset · ${previewDuration.toFixed(1)}s slice.`
+      : `live preview updated · ${previewDuration.toFixed(1)}s slice.`,
+  );
+}
+
+function getPreviewAudioContext() {
+  if (state.previewAudioContext) {
+    return state.previewAudioContext;
+  }
+
+  const AudioContextCtor = globalThis.AudioContext || globalThis.webkitAudioContext;
+  if (!AudioContextCtor) {
+    return null;
+  }
+
+  state.previewAudioContext = new AudioContextCtor();
+  return state.previewAudioContext;
+}
+
+function stopPreviewAudio() {
+  if (!state.previewSource) {
+    return;
+  }
+
+  try {
+    state.previewSource.stop();
+  } catch (_error) {
+    // Ignore stop errors when the source already ended.
+  }
+
+  state.previewSource.disconnect();
+  state.previewSource = null;
+}
+
+async function playPreviewBuffer(channels, sampleRate) {
+  const audioContext = getPreviewAudioContext();
+  if (!audioContext) {
+    return false;
+  }
+
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
+
+  stopPreviewAudio();
+
+  const frameCount = channels[0].length;
+  const audioBuffer = audioContext.createBuffer(channels.length, frameCount, sampleRate);
+  for (let channelIndex = 0; channelIndex < channels.length; channelIndex += 1) {
+    audioBuffer.copyToChannel(channels[channelIndex], channelIndex);
+  }
+
+  const source = audioContext.createBufferSource();
+  const gainNode = audioContext.createGain();
+  gainNode.gain.value = 0.9;
+  source.buffer = audioBuffer;
+  source.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  source.onended = () => {
+    if (state.previewSource === source) {
+      state.previewSource = null;
+    }
+    source.disconnect();
+    gainNode.disconnect();
+  };
+  state.previewSource = source;
+  source.start();
+  return true;
 }
 
 function startSyncLoop() {
@@ -765,6 +1092,10 @@ function setStatus(message) {
 
 function getPresetForMode(mode) {
   return mode === "custom" ? state.customPreset : MODE_PRESETS[mode];
+}
+
+function getModeLabel(mode) {
+  return MODE_META[mode]?.label ?? mode;
 }
 
 function clonePreset(preset) {
@@ -1179,7 +1510,7 @@ function reduceFrameRate(frames) {
   return frames.filter((_, index) => index % step === 0 || index === frames.length - 1);
 }
 
-function synthesizeClip(log, options) {
+function renderSynthData(log, options) {
   const preset = getPresetForMode(options.mode);
   if (!preset) {
     throw new Error("Unknown sound mode.");
@@ -1312,12 +1643,19 @@ function synthesizeClip(log, options) {
     right[sampleIndex] = softClip(rightSample * 1.32) * fade;
   }
 
-  const blob = encodeWavBlob([left, right], SAMPLE_RATE);
   return {
-    blob,
+    channels: [left, right],
     duration: clipDuration,
     sampleRate: SAMPLE_RATE,
-    modeLabel: elements.soundMode.selectedOptions[0].textContent,
+    modeLabel: getModeLabel(options.mode),
+  };
+}
+
+function synthesizeClip(log, options) {
+  const render = renderSynthData(log, options);
+  return {
+    ...render,
+    blob: encodeWavBlob(render.channels, render.sampleRate),
   };
 }
 

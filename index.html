@@ -99,6 +99,9 @@
               <option value="cinematic">cinematic chase</option>
               <option value="arcade">arcade sim</option>
               <option value="micro">micro sim</option>
+              <option value="brushed">brushed toy</option>
+              <option value="racer">clean racer</option>
+              <option value="duct">heavy duct</option>
               <option value="space">space ship</option>
               <option value="custom">custom</option>
             </select>
@@ -142,6 +145,16 @@
           realistic tinywhoop favors buzzy harmonics, lift-dependent wind, and subtle frame chatter.
         </div>
 
+        <section class="preset-browser-panel">
+          <div class="section-head compact-head">
+            <div>
+              <h2>voice browser</h2>
+              <p>pick a built-in voice or copy one into custom and tweak from there.</p>
+            </div>
+          </div>
+          <div class="preset-browser" id="presetBrowser"></div>
+        </section>
+
         <section class="custom-panel hidden" id="customPresetPanel">
           <div class="section-head compact-head">
             <div>
@@ -151,11 +164,18 @@
           </div>
 
           <div class="preset-actions">
+            <button id="previewPresetButton" type="button" class="secondary-btn">preview custom</button>
             <button id="exportPresetButton" type="button" class="ghost-btn">export preset</button>
             <button id="importPresetButton" type="button" class="ghost-btn">import preset</button>
             <button id="resetPresetButton" type="button" class="ghost-btn">reset custom</button>
             <input id="importPresetFile" class="hidden" type="file" accept=".json,application/json">
           </div>
+
+          <label class="toggle-pill standalone-toggle">
+            <input id="livePreviewToggle" type="checkbox" checked>
+            <span>live audio preview while tweaking</span>
+          </label>
+          <div class="preset-note">plays a short audio slice from the current clip start when sliders move.</div>
 
           <div class="preset-grid" id="customPresetFields"></div>
         </section>
